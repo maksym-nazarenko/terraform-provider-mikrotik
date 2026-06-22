@@ -1,6 +1,6 @@
 module github.com/ddelnano/terraform-provider-mikrotik
 
-go 1.18
+go 1.21
 
 require (
 	github.com/ddelnano/terraform-provider-mikrotik/client v0.0.0-00010101000000-000000000000
@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/terraform-plugin-log v0.8.0
 	github.com/hashicorp/terraform-plugin-mux v0.8.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.20.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
@@ -25,7 +25,7 @@ require (
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
-	github.com/go-routeros/routeros v0.0.0-20210123142807-2a44d57c6730 // indirect
+	github.com/go-routeros/routeros/v3 v3.0.1 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/uuid v1.3.0 // indirect

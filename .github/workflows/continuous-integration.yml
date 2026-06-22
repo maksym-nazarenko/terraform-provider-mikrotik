@@ -14,13 +14,13 @@ jobs:
     strategy:
       matrix:
         experimental: [false]
-        go: ["1.18"]
+        go: ["1.26"]
         os: [ubuntu-latest]
         # Test against latest stable 6.x and 7.x and "latest" stable
         routeros: ["6.49.15", "7.14.3"]
         include:
           - experimental: true
-            go: 1.18
+            go: 1.26
             os: ubuntu-latest
             routeros: "latest"
 

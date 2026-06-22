@@ -110,7 +110,7 @@ package client
 
 import (
 	"github.com/ddelnano/terraform-provider-mikrotik/client/internal/types"
-	"github.com/go-routeros/routeros"
+	"github.com/go-routeros/routeros/v3"
 )
 
 // {{.ResourceName}} defines resource

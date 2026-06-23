@@ -27,8 +27,8 @@ func run() error {
 	}
 
 	item, err := inspectConsoleCommand(mc, &InspectConfig{
-		Root:  "/ip/dns",
-		Depth: 2,
+		Root:  "/ip/dns/static",
+		Depth: 3,
 	})
 	if err != nil {
 		return err
@@ -75,60 +75,58 @@ func inspectConsoleCommand(mc *routeros.Client, config *InspectConfig) (*Item, e
 	}
 
 	itemsQueue := []*Item{rootNode}
-	var nextItemsLevelQueue []*Item
+	var nextItemsBatch []*Item
 
 	for i := 1; len(itemsQueue) > 0 && i < 10; i++ {
 		if i > config.Depth {
 			return rootNode, nil
 		}
 
-		node := itemsQueue[0]
-		items, err = inspectPath(mc, node.Self, "child")
-		if err != nil {
-			return nil, err
-		}
+		// node := itemsQueue[0]
+		// items, err = inspectPath(mc, node.Self, "child")
+		// if err != nil {
+		// 	return nil, err
+		// }
 
-	RANGE_LOOP:
-		for _, v := range items {
-			if v.Type == TypeSelf {
-				switch v.NodeType {
-				case NodeTypeCmd:
-					args, err := getCommandArguments(mc, node.Self)
-					if err != nil {
-						return nil, err
-					}
-					node.Arguments = args
+		// RANGE_LOOP:
+		for _, node := range itemsQueue {
+			// if v.Type == TypeSelf {
+			// 	switch v.NodeType {
+			// 	case NodeTypeCmd:
+			// 		args, err := getCommandArguments(mc, node.Self)
+			// 		if err != nil {
+			// 			return nil, err
+			// 		}
+			// 		node.Arguments = args
 
-					// short path - `cmd` should not have children
-					break RANGE_LOOP
-				}
-				continue
-			}
+			// 		// short path - `cmd` should not have children
+			// 		break RANGE_LOOP
+			// 	}
+			// 	continue
+			// }
 
-			var discoveredItem *Item
-			switch v.NodeType {
+			// var discoveredItem *Item
+			switch node.NodeType {
 			case NodeTypeCmd:
-				discoveredItem = &Item{
-					Self:     node.Self + "/" + v.Name,
-					Name:     v.Name,
-					NodeType: NodeTypeCmd,
+				args, err := getCommandArguments(mc, node.Self)
+				if err != nil {
+					return nil, err
 				}
-				node.Children = append(node.Children, discoveredItem)
+				node.Arguments = args
+				continue
 			case NodeTypeDir:
-				discoveredItem = &Item{
-					Self:     node.Self + "/" + v.Name,
-					Name:     v.Name,
-					NodeType: v.NodeType,
+				children, err := getNodeChildren(mc, node.Self)
+				if err != nil {
+					return nil, err
 				}
-				node.Children = append(node.Children, discoveredItem)
+				node.Children = append(node.Children, children...)
+				nextItemsBatch = append(nextItemsBatch, children...)
 			default:
-				return nil, fmt.Errorf("unsupported node type: %s", v.NodeType)
+				return nil, fmt.Errorf("unsupported node type: %s", node.NodeType)
 			}
-
-			nextItemsLevelQueue = append(nextItemsLevelQueue, discoveredItem)
 		}
 
-		itemsQueue = nextItemsLevelQueue
+		itemsQueue = nextItemsBatch
 	}
 
 	return rootNode, nil
@@ -187,23 +185,23 @@ func getCommandArguments(c *routeros.Client, command string) ([]*Argument, error
 	return args, nil
 }
 
-// func getNodeChildren(c *routeros.Client, command string) ([]*Item, error) {
-// 	items, err := inspectPath(c, command, "child")
-// 	if err != nil {
-// 		return nil, err
-// 	}
+func getNodeChildren(c *routeros.Client, command string) ([]*Item, error) {
+	items, err := inspectPath(c, command, "child")
+	if err != nil {
+		return nil, err
+	}
 
-// 	var children []*Item
-// 	for _, v := range items {
-// 		// if v.Type != TypeChild {
-// 		// 	continue
-// 		// }
-// 		children = append(children, &Item{
-// 			Self:     v.Name,
-// 			Name:     v.Name,
-// 			NodeType: v.NodeType,
-// 		})
-// 	}
+	var children []*Item
+	for _, v := range items {
+		if v.Type != TypeChild {
+			continue
+		}
+		children = append(children, &Item{
+			Self:     command + "/" + v.Name,
+			Name:     v.Name,
+			NodeType: v.NodeType,
+		})
+	}
 
-// 	return children, nil
-// }
+	return children, nil
+}

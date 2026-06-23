@@ -35,7 +35,7 @@ type (
 )
 
 func main() {
-	if err := realMain(os.Args[1:]); err != nil {
+	if err := run(os.Args[1:]); err != nil {
 		log.Fatalf("execution failed: %v", err)
 	}
 
@@ -50,7 +50,7 @@ Sub commands:
 `))
 }
 
-func realMain(args []string) error {
+func run(args []string) error {
 	if len(args) < 1 {
 		usage(flag.CommandLine.Output())
 		return nil
@@ -130,7 +130,7 @@ func realMain(args []string) error {
 		fs.BoolVar(&config.QueryDefinition, "query-definition", false,
 			"[EXPERIMENTAL] Query remote MikroTik device to fetch resource fields. Conflicts with inspect-definition-file.")
 
-    _ = fs.Parse(args)
+		_ = fs.Parse(args)
 
 		if config.InspectDefinitionFile != "" && config.QueryDefinition {
 			return errors.New("only one of inspect-definition-file or query-definition can be used")

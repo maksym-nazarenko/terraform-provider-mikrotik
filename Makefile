@@ -57,3 +57,6 @@ routeros-logs:
 
 routeros-clean:
 	${compose} rm -sfv routeros
+
+routeros-ssh:
+	ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o Port=2222 admin@localhost

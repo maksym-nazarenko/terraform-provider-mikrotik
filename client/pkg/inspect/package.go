@@ -1,25 +1,30 @@
-package main
+package inspect
 
 const (
-	NodeTypeCmd  NodeType = "cmd"
-	NodeTypeDir  NodeType = "dir"
-	NodeTypeArg  NodeType = "arg"
-	NodeTypeSelf NodeType = "self"
-
 	TypeSelf       Type = "self"
 	TypeChild      Type = "child"
 	TypeCompletion Type = "completion"
 )
 
+const (
+	NodeTypeCmd  NodeType = "cmd"
+	NodeTypeDir  NodeType = "dir"
+	NodeTypePath NodeType = "path"
+	NodeTypeArg  NodeType = "arg"
+	NodeTypeSelf NodeType = "self"
+)
+
 type (
-	NodeType string
 	Type     string
+	NodeType string
 
 	Argument struct {
-		Name    string
+		Name string
+		// Options holds a list of valid options for this argument, if any.
 		Options []string
 	}
 
+	// ConsoleItem is a raw representation of `/console/inspect` items
 	ConsoleItem struct {
 		Name       string   `mikrotik:"name"`
 		NodeType   NodeType `mikrotik:"node-type"`
@@ -28,15 +33,15 @@ type (
 		Show       bool     `mikrotik:"show"`
 	}
 
-	Item struct {
+	Node struct {
 		Self      string
 		Name      string
-		NodeType  NodeType
-		Children  []*Item
+		Type      NodeType
+		Children  []*Node
 		Arguments []*Argument
 	}
 
-	InspectConfig struct {
+	Config struct {
 		Root  string
 		Depth int
 	}

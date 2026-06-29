@@ -44,7 +44,7 @@ func Do(c *routeros.Client, config *Config) (*Node, error) {
 	var nextItemsBatch []*Node
 
 	for i := 1; len(itemsQueue) > 0 && i < 10; i++ {
-		if i > config.Depth {
+		if config.Depth >= 0 && i > config.Depth {
 			return rootNode, nil
 		}
 

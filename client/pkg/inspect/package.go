@@ -39,6 +39,9 @@ type (
 		Type      NodeType
 		Children  []*Node
 		Arguments []*Argument
+
+		ChildrenMap  map[string]*Node     `json:"-"`
+		ArgumentsMap map[string]*Argument `json:"-"`
 	}
 
 	Config struct {

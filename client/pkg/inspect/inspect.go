@@ -69,6 +69,12 @@ func processNodes(c *routeros.Client, nodes []*Node) ([]*Node, error) {
 				return nil, err
 			}
 			node.Arguments = args
+			if node.ArgumentsMap == nil {
+				node.ArgumentsMap = make(map[string]*Argument)
+			}
+			for i := range args {
+				node.ArgumentsMap[args[i].Name] = args[i]
+			}
 			continue
 		case NodeTypeDir, NodeTypePath:
 			children, err := getNodeChildren(c, node.Self)
@@ -77,6 +83,13 @@ func processNodes(c *routeros.Client, nodes []*Node) ([]*Node, error) {
 			}
 			node.Children = append(node.Children, children...)
 			nextItems = append(nextItems, children...)
+			if node.ChildrenMap == nil {
+				node.ChildrenMap = make(map[string]*Node)
+			}
+			for i := range children {
+				node.ChildrenMap[children[i].Name] = children[i]
+			}
+
 		default:
 			return nil, fmt.Errorf("unsupported node type: %s", node.Type)
 		}

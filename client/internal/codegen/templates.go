@@ -25,9 +25,13 @@ const (
 
 // {{.ResourceName}} defines resource
 type {{.ResourceName}} struct {
-	Id string ` + "`" + `mikrotik:".id"` + "`" + `
+	Id string ` + "`" + `mikrotik:".id" codegen:"id,mikrotikID,terraformID"` + "`" + `
 	{{range $field := .Arguments -}}
-		{{$field.Name | pascalCase}} {{$field.Type}} ` + "`" + `mikrotik:"{{$field.Name}}"` + "`" + `
+		{{$field.Name | pascalCase}} {{$field.Type}} ` + "`" + `mikrotik:"{{$field.Name}}" codegen:""` + "`" + `
+	{{end}}
+
+	{{range $field := .ReadonlyProperties -}}
+		{{$field.Name | pascalCase}} {{$field.Type}} ` + "`" + `mikrotik:"{{$field.Name}},readonly" codegen:""` + "`" + `
 	{{end}}
 }
 

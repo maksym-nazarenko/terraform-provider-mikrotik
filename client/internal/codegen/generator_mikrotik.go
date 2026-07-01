@@ -13,10 +13,17 @@ import (
 )
 
 type (
+	// ArgumentDesciptor is the interface the template logic interacts with.
 	ArgumentDesciptor interface {
 		Name() string
 		Options() []string
 		Type() string
+	}
+
+	PropertyDescriptor interface {
+		Name() string
+		Type() string
+		Readonly() bool
 	}
 
 	argumentWrapper struct {
@@ -24,10 +31,15 @@ type (
 		possibleType string
 	}
 
+	propertyWrapper struct {
+		property *inspect.Property
+	}
+
 	definitionData struct {
-		CommandBasePath string
-		ResourceName    string
-		Arguments       []ArgumentDesciptor
+		CommandBasePath    string
+		ResourceName       string
+		Arguments          []ArgumentDesciptor
+		ReadonlyProperties []PropertyDescriptor
 	}
 )
 
@@ -46,10 +58,16 @@ func GenerateMikrotikResource(resourceName string, node *inspect.Node, w io.Writ
 		arguments = append(arguments, &argumentWrapper{arg: addCmd.Arguments[i]})
 	}
 
+	readonlyProperties := make([]PropertyDescriptor, 0, len(node.ReadonlyPropertiesMap))
+	for name := range node.ReadonlyPropertiesMap {
+		readonlyProperties = append(readonlyProperties, &propertyWrapper{property: node.ReadonlyPropertiesMap[name]})
+	}
+
 	data := &definitionData{
-		CommandBasePath: node.Self,
-		ResourceName:    resourceName,
-		Arguments:       arguments,
+		CommandBasePath:    node.Self,
+		ResourceName:       resourceName,
+		Arguments:          arguments,
+		ReadonlyProperties: readonlyProperties,
 	}
 	return generateCode(
 		w,
@@ -107,4 +125,16 @@ func (aw *argumentWrapper) guessType() string {
 	}
 
 	return "string"
+}
+
+func (pw *propertyWrapper) Name() string {
+	return pw.property.Name
+}
+
+func (pw *propertyWrapper) Type() string {
+	return "string"
+}
+
+func (pw *propertyWrapper) Readonly() bool {
+	return true
 }

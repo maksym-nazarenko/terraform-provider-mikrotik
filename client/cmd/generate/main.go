@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 
 	"github.com/ddelnano/terraform-provider-mikrotik/client"
 	"github.com/ddelnano/terraform-provider-mikrotik/client/internal/codegen"
@@ -22,6 +23,27 @@ func main() {
 }
 
 func run() error {
+	appName := path.Base(os.Args[0])
+	if len(os.Args) < 2 {
+		usage(appName)
+		return nil
+	}
+	subcommand := os.Args[1]
+	args := os.Args[2:]
+
+	switch subcommand {
+	case "resource":
+		return subcommandResource(args)
+	case "-h", "--help":
+		usage(appName)
+		return nil
+	default:
+		usage(appName)
+		return fmt.Errorf("unknown subcommand: %s", subcommand)
+	}
+}
+
+func subcommandResource(args []string) error {
 	var (
 		queryRemote    bool
 		commandBase    string
@@ -29,22 +51,26 @@ func run() error {
 		definitionFile string
 	)
 
-	flag.BoolVar(&queryRemote, "query", false, "query remote system to fetch resource definition")
-	flag.StringVar(&commandBase, "basePath", "/", "resource base path to generate code for")
-	flag.StringVar(&definitionFile, "definitionFile", "", "`path` to definition file in JSON format")
-	flag.StringVar(&resourceName, "resourceName", "", "use this name in code, otherwise it is generated using basePath")
-	flag.Parse()
+	fs := flag.NewFlagSet("resource", flag.ExitOnError)
+	fs.BoolVar(&queryRemote, "query", false, "query remote system to fetch resource definition")
+	fs.StringVar(&commandBase, "basePath", "", "resource base path to generate code for")
+	fs.StringVar(&definitionFile, "definitionFile", "", "`path` to definition file in JSON format")
+	fs.StringVar(&resourceName, "resourceName", "", "use this name in code, otherwise it is generated using basePath")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 
 	if len(commandBase) < 1 {
 		return fmt.Errorf("commandBase cannot be empty")
 	}
+
 	if (len(definitionFile) > 0 && queryRemote) || (len(definitionFile) == 0 && !queryRemote) {
 		return fmt.Errorf("at least (and at most) one of [query, definitionFile] flags must be set")
 	}
 
 	var rootNode *inspect.Node
-	switch {
 
+	switch {
 	case queryRemote:
 		mc := client.NewClient(client.GetConfigFromEnv())
 		c, err := mc.GetMikrotikClient()
@@ -67,7 +93,7 @@ func run() error {
 			return fmt.Errorf("could not read resource definition file: %w", err)
 		}
 		if err := json.Unmarshal(fileBytes, &rootNode); err != nil {
-			return fmt.Errorf("coull not parse resource definition file: %w", err)
+			return fmt.Errorf("could not parse resource definition file: %w", err)
 		}
 	}
 
@@ -75,24 +101,24 @@ func run() error {
 		return fmt.Errorf("could not build root node")
 	}
 
-	var buf bytes.Buffer
 	if resourceName == "" {
 		resourceName = utils.PascalCase(rootNode.Self)
-	}
-
-	if err := codegen.GenerateMikrotikResource(resourceName, rootNode, &buf); err != nil {
-		return err
 	}
 
 	type (
 		generatorPostHookFunc func([]byte) ([]byte, error)
 	)
-	writeHooks := []generatorPostHookFunc{codegen.SourceFormatHook}
-
 	var (
+		buf    bytes.Buffer
 		result []byte
 		err    error
 	)
+
+	if err := codegen.GenerateMikrotikResource(resourceName, rootNode, &buf); err != nil {
+		return err
+	}
+
+	writeHooks := []generatorPostHookFunc{codegen.SourceFormatHook}
 
 	result = buf.Bytes()
 	for _, h := range writeHooks {
@@ -108,4 +134,16 @@ func run() error {
 	}
 
 	return nil
+}
+
+func usage(appName string) {
+	fmt.Fprintf(os.Stdout,
+		`Usage: %s <type> [flags]
+
+<type> is one of:
+  resource  - generate a MikroTik resource to be used by the API client
+
+run %s <type> -h for more information about a specific type flags`,
+		appName, appName,
+	)
 }

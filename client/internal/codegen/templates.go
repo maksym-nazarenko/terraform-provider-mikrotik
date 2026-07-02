@@ -61,9 +61,9 @@ func (b *{{.ResourceName}}) SetID(id string) {
 // Uncomment extra methods to satisfy more interfaces
 
 // Adder
-// func (b *{{.ResourceName}}) AfterAddHook(r *routeros.Reply) {
-// 	b.Id = r.Done.Map["ret"]
-// }
+func (b *{{.ResourceName}}) AfterAddHook(r *routeros.Reply) {
+	b.Id = r.Done.Map["ret"]
+}
 
 // Finder
 // func (b *{{.ResourceName}}) FindField() string {

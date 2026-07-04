@@ -3,7 +3,7 @@ package client
 import (
 	"strings"
 
-	"github.com/go-routeros/routeros"
+	"github.com/go-routeros/routeros/v3"
 )
 
 type LegacyBgpUnsupported struct{}
@@ -15,6 +15,9 @@ func (LegacyBgpUnsupported) Error() string {
 func legacyBgpUnsupported(err error) bool {
 	if err != nil {
 		if strings.Contains(err.Error(), "no such command prefix") {
+			return true
+		}
+		if strings.Contains(err.Error(), "unknown parameter") {
 			return true
 		}
 	}

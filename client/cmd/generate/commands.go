@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -62,12 +61,14 @@ func subcommandResource(args []string) error {
 		}
 
 	case definitionFile != "":
-		fileBytes, err := os.ReadFile(definitionFile)
-		if err != nil {
-			return fmt.Errorf("could not read resource definition file: %w", err)
+		var rootNodeDefinition *inspect.Node
+		var err error
+		if rootNodeDefinition, err = readDefinitionFile(definitionFile); err != nil {
+			return err
 		}
-		if err := json.Unmarshal(fileBytes, &rootNode); err != nil {
-			return fmt.Errorf("could not parse resource definition file: %w", err)
+		rootNode, err = findSubNode(rootNodeDefinition, commandBase)
+		if err != nil {
+			return err
 		}
 	}
 

@@ -46,8 +46,8 @@ type (
 		Arguments             []*Argument
 		ReadonlyPropertiesMap map[string]*Property
 
-		ChildrenMap  map[string]*Node     `json:"-"`
-		ArgumentsMap map[string]*Argument `json:"-"`
+		ChildrenMap  map[string]*Node
+		ArgumentsMap map[string]*Argument
 	}
 
 	Config struct {

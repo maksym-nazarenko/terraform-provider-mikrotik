@@ -25,9 +25,9 @@ const (
 
 // {{.ResourceName}} defines resource
 type {{.ResourceName}} struct {
-	Id string ` + "`" + `mikrotik:".id" codegen:"id,mikrotikID,terraformID"` + "`" + `
+	Id string ` + "`" + `mikrotik:".id" codegen:"id,mikrotikID"` + "`" + `
 	{{range $field := .Arguments -}}
-		{{$field.Name | pascalCase}} {{$field.Type}} ` + "`" + `mikrotik:"{{$field.Name}}" codegen:""` + "`" + `
+		{{$field.Name | pascalCase}} {{$field.Type}} ` + "`" + `mikrotik:"{{$field.Name}}" codegen:"{{$field.Name | snakeCase}}"` + "`" + `
 	{{end}}
 
 	{{range $field := .ReadonlyProperties -}}
@@ -129,6 +129,49 @@ func (c Mikrotik) List{{.ResourceName}}() ([]{{.ResourceName}}, error) {
 func (c Mikrotik) Delete{{.ResourceName}}(id string) error {
 	return c.Delete(&{{.ResourceName}}{Id: id})
 }
+`
 
+	mikrotikResourceTestDefinitionTemplate = `
+package client
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestSmoke_{{.ResourceName}}(t *testing.T) {
+	c := NewClient(GetConfigFromEnv())
+
+	expectedResource := &{{.ResourceName}}{
+		{{- range $field := .Fields }}
+		{{- if eq $field.Name "Id" }}{{continue}}{{end}}
+		// {{$field.Name}}: {{$field.Type.Type | sampleData}},
+	{{- end }}
+	}
+
+	createdResource, err := c.Add{{.ResourceName}}(expectedResource)
+	require.NoError(t, err)
+
+	defer func(){
+		err := c.Delete(createdResource)
+		if !IsNotFoundError(err) {
+			assert.NoError(t, err)
+		}
+	}()
+	assert.NotEmpty(t, createdResource.Id)
+
+	foundResource, err := c.Find(expectedResource)
+	require.NoError(t, err)
+	assert.Equal(t, createdResource, foundResource)
+
+	// cleanup
+	err = c.Delete(foundResource)
+	assert.NoError(t, err)
+
+	_, err = c.Find(expectedResource)
+	assert.True(t, IsNotFoundError(err), "expected not found error, got: %v", err)
+}
 `
 )

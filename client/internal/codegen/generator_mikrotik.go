@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"slices"
-	"strings"
 	"text/template"
 
 	"github.com/ddelnano/terraform-provider-mikrotik/client/internal/codegen/utils"
@@ -24,15 +22,6 @@ type (
 		Name() string
 		Type() string
 		Readonly() bool
-	}
-
-	argumentWrapper struct {
-		arg          *inspect.Argument
-		possibleType string
-	}
-
-	propertyWrapper struct {
-		property *inspect.Property
 	}
 
 	definitionData struct {
@@ -77,10 +66,29 @@ func GenerateMikrotikResource(resourceName string, node *inspect.Node, w io.Writ
 	)
 }
 
+func GenerateMikrotikResourceTest(s *Struct, w io.Writer) error {
+	data := struct {
+		ResourceName string
+		Fields       []*Field
+	}{
+		ResourceName: s.Name,
+		Fields:       s.Fields,
+	}
+
+	return generateCode(
+		w,
+		"resource-test",
+		mikrotikResourceTestDefinitionTemplate,
+		data,
+	)
+}
+
 func generateCode(w io.Writer, templateName, templateBody string, templateData any) error {
 	t := template.New(templateName)
 	t.Funcs(template.FuncMap{
 		"pascalCase": utils.PascalCase,
+		"snakeCase":  utils.ToSnakeCase,
+		"sampleData": sampleData,
 	})
 
 	if _, err := t.Parse(templateBody); err != nil {
@@ -94,47 +102,16 @@ func generateCode(w io.Writer, templateName, templateBody string, templateData a
 	return nil
 }
 
-func (aw *argumentWrapper) Name() string {
-	return aw.arg.Name
-}
-
-func (aw *argumentWrapper) Options() []string {
-	return aw.arg.Options
-}
-
-func (aw *argumentWrapper) Type() string {
-	if aw.possibleType == "" {
-		aw.possibleType = aw.guessType()
+// sampleData generates sample value for provided type.
+func sampleData(typeName string) string {
+	switch typeName {
+	case string(TypeString):
+		return `"sample"`
+	case string(TypeInt64):
+		return "42"
+	case string(TypeBool):
+		return "false"
+	default:
+		return `"` + string(TypeUnknown) + `"`
 	}
-
-	return aw.possibleType
-}
-
-func (aw *argumentWrapper) guessType() string {
-	if len(aw.arg.Options) == 2 && slices.Contains(aw.arg.Options, "no") && slices.Contains(aw.arg.Options, "yes") {
-		return "bool"
-	}
-
-	if strings.ToLower(aw.arg.Name) == "ttl" {
-		return "types.MikrotikDuration"
-	}
-
-	if len(aw.arg.Options) == 1 && strings.ToLower(aw.arg.Options[0]) == "none" {
-		// return "types.MikrotikNoneAware"
-		return "string"
-	}
-
-	return "string"
-}
-
-func (pw *propertyWrapper) Name() string {
-	return pw.property.Name
-}
-
-func (pw *propertyWrapper) Type() string {
-	return "string"
-}
-
-func (pw *propertyWrapper) Readonly() bool {
-	return true
 }

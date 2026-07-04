@@ -3,11 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path"
+	"strconv"
 
 	"github.com/ddelnano/terraform-provider-mikrotik/client"
 	"github.com/ddelnano/terraform-provider-mikrotik/client/internal/codegen"
@@ -34,6 +36,8 @@ func run() error {
 	switch subcommand {
 	case "resource":
 		return subcommandResource(args)
+	case "test":
+		return subcommandTest(args)
 	case "-h", "--help":
 		usage(appName)
 		return nil
@@ -49,6 +53,7 @@ func subcommandResource(args []string) error {
 		commandBase    string
 		resourceName   string
 		definitionFile string
+		outFile        string
 	)
 
 	fs := flag.NewFlagSet("resource", flag.ExitOnError)
@@ -56,6 +61,7 @@ func subcommandResource(args []string) error {
 	fs.StringVar(&commandBase, "basePath", "", "resource base path to generate code for")
 	fs.StringVar(&definitionFile, "definitionFile", "", "`path` to definition file in JSON format")
 	fs.StringVar(&resourceName, "resourceName", "", "use this name in code, otherwise it is generated using basePath")
+	fs.StringVar(&outFile, "outFile", "-", "`path` to write generated code to. Use '-' for stdout")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -128,12 +134,71 @@ func subcommandResource(args []string) error {
 		}
 	}
 
-	out := os.Stdout
-	if _, err := out.Write(result); err != nil {
+	writeOut := func(data []byte) error {
+		_, err := fmt.Fprint(os.Stdout, string(data))
 		return err
 	}
 
-	return nil
+	if outFile != "-" {
+		writeOut = func(data []byte) error {
+			return os.WriteFile(outFile, data, 0644)
+		}
+	}
+
+	return writeOut(result)
+}
+
+func subcommandTest(args []string) error {
+	var (
+		sourceFile string
+		structName string
+		outputFile string
+	)
+
+	fs := flag.NewFlagSet("test", flag.ExitOnError)
+	fs.StringVar(&sourceFile, "sourceFile", "", "`path` to source file to generate test for")
+	fs.StringVar(&structName, "structName", "", "name of the struct to search in the source file, if not provided the first struct found will be used")
+	fs.StringVar(&outputFile, "outFile", "-", "`path` to output file for the generated test. Use '-' for stdout")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if sourceFile == "" {
+		return errors.New("no source file provided via -sourceFile flag")
+	}
+
+	startLine := 1
+	lineStr := os.Getenv("GOLINE")
+	if lineStr != "" {
+		lineInt, err := strconv.Atoi(lineStr)
+		if err != nil {
+			return fmt.Errorf("fail to parse GOLINE: %v", err.Error())
+		}
+		startLine = lineInt
+	}
+
+	s, err := codegen.ParseFile(sourceFile, startLine, structName)
+	if err != nil {
+		return err
+	}
+
+	buf := bytes.Buffer{}
+	if err := codegen.GenerateMikrotikResourceTest(s, &buf); err != nil {
+		return err
+	}
+
+	writeOut := func(data []byte) error {
+		_, err := fmt.Fprint(os.Stdout, string(data))
+		return err
+	}
+
+	if outputFile != "-" {
+		writeOut = func(data []byte) error {
+			return os.WriteFile(outputFile, data, 0644)
+		}
+	}
+
+	return writeOut(buf.Bytes())
 }
 
 func usage(appName string) {
@@ -141,7 +206,8 @@ func usage(appName string) {
 		`Usage: %s <type> [flags]
 
 <type> is one of:
-  resource  - generate a MikroTik resource to be used by the API client
+  resource	- generate a MikroTik resource to be used by the API client
+  test		- generate a test-file for a MikroTik resource
 
 run %s <type> -h for more information about a specific type flags`,
 		appName, appName,

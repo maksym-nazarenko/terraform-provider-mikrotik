@@ -189,6 +189,10 @@ func GetConfigFromEnv() (host, username, password string, tls bool, caCertificat
 	return host, username, password, tls, caCertificate, insecure
 }
 
+func (client *Mikrotik) GetMikrotikClient() (*routeros.Client, error) {
+	return client.getMikrotikClient()
+}
+
 func (client *Mikrotik) getMikrotikClient() (*routeros.Client, error) {
 	if client.connection != nil {
 		return client.connection, nil

@@ -24,7 +24,6 @@ func Do(c *routeros.Client, config *Config) (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	var rootNode *Node
 	for _, v := range items {
 		if v.Type == TypeSelf {

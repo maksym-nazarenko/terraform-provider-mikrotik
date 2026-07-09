@@ -1,7 +1,6 @@
 package codegen
 
 import (
-	"errors"
 	"go/parser"
 	"go/token"
 	"testing"
@@ -19,12 +18,12 @@ func TestParse(t *testing.T) {
 		expectedError error
 	}{
 		{
-			name: "terraform and mikrotik id fields are parsed",
+			name: "happy path parsing",
 			source: []byte(`
 package testpackage
 
 type DnsRecord struct {
-	ID	 			   string` + " `codegen:\"id,mikrotikID\"`" + `
+	ID	 			   string` + " `codegen:\"id\"`" + `
 	Name 			   string` + " `codegen:\"name\"`" + `
 	GeneratedNumber	   string` + " `codegen:\"internal_id\"`" + `
 	Enabled 		   bool` + " `codegen:\"enabled\"`" + `
@@ -34,63 +33,71 @@ type DnsRecord struct {
 			`),
 
 			expected: &Struct{
-				Name:            "DnsRecord",
-				MikrotikIDField: "ID",
+				Name: "DnsRecord",
 				Fields: []*Field{
 					{
-						Name:         "ID",
-						MikrotikName: "id",
-						Type:         NewType(TypeString),
+						Name:       "ID",
+						NameTarget: "id",
+						Type:       NewType(TypeString),
 					},
 					{
-						Name:         "Name",
-						MikrotikName: "name",
-						Type:         NewType(TypeString),
+						Name:       "Name",
+						NameTarget: "name",
+						Type:       NewType(TypeString),
 					},
 					{
-						Name:         "GeneratedNumber",
-						MikrotikName: "internal_id",
-						Type:         NewType(TypeString),
+						Name:       "GeneratedNumber",
+						NameTarget: "internal_id",
+						Type:       NewType(TypeString),
 					},
 					{
-						Name:         "Enabled",
-						MikrotikName: "enabled",
-						Type:         NewType(TypeBool),
+						Name:       "Enabled",
+						NameTarget: "enabled",
+						Type:       NewType(TypeBool),
 					},
 				},
 			},
 		},
 		{
-			name: "mikrotikID is not set",
+			name: "all tags are passed, not just known",
 			source: []byte(`
 package testpackage
 
 type DnsRecord struct {
-	Id 			   	   string` + " `codegen:\"id\"`" + `
+	ID	 			   string` + " `codegen:\"id\"`" + `
 	Name 			   string` + " `codegen:\"name\"`" + `
 	GeneratedNumber	   string` + " `codegen:\"internal_id\"`" + `
-	Enabled 		   bool` + " `codegen:\"enabled,id\"`" + `
-	ExplicitlyOmitted  bool` + " `codegen:\"-,omit\"`" + `
-}
-			`),
-
-			expectedError: errors.New(""),
-		},
-		{
-			name: "mikrotik id field set multiple times",
-			source: []byte(`
-package testpackage
-
-type DnsRecord struct {
-	ID 				   string` + " `codegen:\"id,mikrotikID\"`" + `
-	Name 			   string` + " `codegen:\"name,mikrotikID\"`" + `
-	GeneratedNumber	   string` + " `codegen:\"internal_id\"`" + `
 	Enabled 		   bool` + " `codegen:\"enabled\"`" + `
+	Omitted			   bool` + " `codegen:\"-\"`" + `
 	ExplicitlyOmitted  bool` + " `codegen:\"-,omit\"`" + `
 }
 			`),
 
-			expectedError: errors.New(""),
+			expected: &Struct{
+				Name: "DnsRecord",
+				Fields: []*Field{
+					{
+						Name:       "ID",
+						NameTarget: "id",
+						Type:       NewType(TypeString),
+					},
+					{
+						Name:       "Name",
+						NameTarget: "name",
+						Type:       NewType(TypeString),
+					},
+					{
+						Name:       "GeneratedNumber",
+						NameTarget: "internal_id",
+						Type:       NewType(TypeString),
+					},
+					{
+						Name:       "Enabled",
+						NameTarget: "enabled",
+						Type:       NewType(TypeBool),
+					},
+				},
+			},
 		},
 	}
 	for _, tc := range cases {

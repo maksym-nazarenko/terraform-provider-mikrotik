@@ -7,18 +7,23 @@ import (
 
 // ToSnakeCase converts in string to snake_case
 func ToSnakeCase(in string) string {
-	var isPrevLower bool
+	var prependUnderscore bool
 	var buf strings.Builder
 
 	for _, r := range in {
-		if 'A' <= r && r <= 'Z' && isPrevLower {
+		if 'A' <= r && r <= 'Z' && prependUnderscore {
 			buf.WriteByte('_')
 			buf.WriteString(strings.ToLower(string(r)))
-			isPrevLower = false
+			prependUnderscore = false
+			continue
+		}
+		if r == '-' {
+			buf.WriteString("_")
+			prependUnderscore = false
 			continue
 		}
 
-		isPrevLower = 'a' <= r && r <= 'z'
+		prependUnderscore = 'a' <= r && r <= 'z'
 		buf.WriteString(strings.ToLower(string(r)))
 	}
 

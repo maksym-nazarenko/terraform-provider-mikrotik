@@ -25,13 +25,13 @@ const (
 
 // {{.ResourceName}} defines resource
 type {{.ResourceName}} struct {
-	Id string ` + "`" + `mikrotik:".id" codegen:"id,mikrotikID"` + "`" + `
+	Id string ` + "`" + `mikrotik:".id" codegen:"id"` + "`" + `
 	{{range $field := .Arguments -}}
 		{{$field.Name | pascalCase}} {{$field.Type}} ` + "`" + `mikrotik:"{{$field.Name}}" codegen:"{{$field.Name | snakeCase}}"` + "`" + `
 	{{end}}
 
 	{{range $field := .ReadonlyProperties -}}
-		{{$field.Name | pascalCase}} {{$field.Type}} ` + "`" + `mikrotik:"{{$field.Name}},readonly" codegen:""` + "`" + `
+		{{$field.Name | pascalCase}} {{$field.Type}} ` + "`" + `mikrotik:"{{$field.Name}},readonly" codegen:"{{$field.Name | snakeCase}},readonly"` + "`" + `
 	{{end}}
 }
 

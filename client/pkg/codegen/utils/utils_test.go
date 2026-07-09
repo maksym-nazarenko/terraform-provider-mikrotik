@@ -35,6 +35,16 @@ func TestToSnakeCase(t *testing.T) {
 			input:    "DefaultHTTPConfig",
 			expected: "default_httpconfig",
 		},
+		{
+			name:     "dashes to underscores",
+			input:    "ThisIs-another-case",
+			expected: "this_is_another_case",
+		},
+		{
+			name:     "dashes to underscores with capital letters",
+			input:    "ThisIs-AnOther-case",
+			expected: "this_is_an_other_case",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

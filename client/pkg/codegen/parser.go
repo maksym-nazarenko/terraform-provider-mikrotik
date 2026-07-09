@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"errors"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -18,9 +17,6 @@ type (
 		// Name is a of parsed struct.
 		Name string
 
-		// MikrotikIDField is a field name which holds MikroTik resource ID.
-		MikrotikIDField string
-
 		// Fields is a collection of field definitions in the parsed struct.
 		Fields []*Field
 	}
@@ -30,19 +26,25 @@ type (
 		// Name is the struct's field name.
 		Name string
 
-		// MikrotikName is a field name defined by struct tag (actual MikroTik field name).
-		MikrotikName string
+		// NameTarget is the target name to use during code generation.
+		// This value comes from the struct's field tag.
+		NameTarget string
+
+		// // MikrotikName is a field name defined by struct tag (actual MikroTik field name).
+		// MikrotikName string
 
 		// Type holds a field type.
 		Type Type
+
+		Readonly bool
 	}
 )
 
 const (
 	codegenTagKey = "codegen"
 
-	optMikrotikID = "mikrotikID"
-	optOmit       = "omit"
+	optReadonly = "readonly"
+	optOmit     = "omit"
 )
 
 // ParseFile parses a .go file with struct declaration.
@@ -181,18 +183,16 @@ func parseStruct(structNode *ast.StructType) (*Struct, error) {
 			}
 		}
 		field := Field{
-			Name:         astField.Names[0].Name,
-			MikrotikName: name,
-			Type:         fieldType,
+			Name:       astField.Names[0].Name,
+			NameTarget: name,
+			// MikrotikName: name,
+			Type: fieldType,
 		}
 		omit := false
 		for _, o := range opts {
 			switch {
-			case o == optMikrotikID:
-				if result.MikrotikIDField != "" {
-					return nil, fmt.Errorf("failed to set '%s' as Mikrotik ID field - it is already set to '%s'", field.Name, result.MikrotikIDField)
-				}
-				result.MikrotikIDField = field.Name
+			case o == optReadonly:
+				field.Readonly = true
 			case o == optOmit:
 				omit = true
 			}
@@ -202,10 +202,6 @@ func parseStruct(structNode *ast.StructType) (*Struct, error) {
 		}
 
 		result.Fields = append(result.Fields, &field)
-	}
-
-	if result.MikrotikIDField == "" {
-		return nil, fmt.Errorf("MikroTik ID field is not set for any of the fields. Did you forget to mark one with '%s'?", optMikrotikID)
 	}
 
 	return result, nil

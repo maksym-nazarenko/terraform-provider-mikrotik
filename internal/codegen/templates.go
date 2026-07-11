@@ -10,7 +10,10 @@ const (
 
 var (
 	//go:embed templates/terraform_resource.go.tpl
-	resourceTemplate string
-
+	resourceTemplate                    string
 	terraformResourceDefinitionTemplate string = generatedNotice + resourceTemplate
+
+	//go:embed templates/terraform_resource_test.go.tpl
+	resourceTestTemplate                    string
+	terraformResourceTestDefinitionTemplate string = generatedNotice + resourceTestTemplate
 )

@@ -1,12 +1,19 @@
 package codegen
 
 import (
-	"html/template"
 	"io"
 	"strings"
+	"text/template"
 
 	clientCodegen "github.com/ddelnano/terraform-provider-mikrotik/client/pkg/codegen"
 	"github.com/ddelnano/terraform-provider-mikrotik/client/pkg/codegen/utils"
+)
+
+const (
+	TypeString  FieldType = "String"
+	TypeBool    FieldType = "Bool"
+	TypeInt64   FieldType = "Int64"
+	TypeUnknown FieldType = "Unknown"
 )
 
 var (
@@ -57,7 +64,7 @@ func GenerateResource(s *clientCodegen.Struct, w io.Writer) error {
 		Imports:        terraformResourceImports,
 		IDField: &Field{
 			Name:          "ID",
-			Type:          FieldType("String"),
+			Type:          TypeString,
 			AttributeName: "id",
 		},
 		Fields: fields,
@@ -70,6 +77,31 @@ func GenerateResource(s *clientCodegen.Struct, w io.Writer) error {
 	)
 }
 
+// GenerateTest generates Terraform resource test and writes it to specified output
+func GenerateTest(s *clientCodegen.Struct, w io.Writer) error {
+	fields, err := convertClientFields(s.Fields)
+	if err != nil {
+		return err
+	}
+
+	data := &templateData{
+		ClientResource: s.Name,
+		Imports:        terraformResourceImports,
+		IDField: &Field{
+			Name:          "ID",
+			Type:          TypeString,
+			AttributeName: "id",
+		},
+		Fields: fields,
+	}
+
+	return generateCode(w,
+		"test",
+		terraformResourceTestDefinitionTemplate,
+		data,
+	)
+}
+
 func generateCode(w io.Writer, templateName, templateBody string, templateData any) error {
 	t := template.New(templateName)
 	t.Funcs(template.FuncMap{
@@ -77,6 +109,7 @@ func generateCode(w io.Writer, templateName, templateBody string, templateData a
 		"snakeCase":  utils.ToSnakeCase,
 		"firstLower": utils.FirstLower,
 		"lowerCase":  strings.ToLower,
+		"sampleData": sampleData,
 	})
 
 	if _, err := t.Parse(templateBody); err != nil {
@@ -97,7 +130,7 @@ func convertClientFields(clientFields []*clientCodegen.Field) ([]*Field, error) 
 		result = append(result, &Field{
 			Name:          v.Name,
 			AttributeName: v.NameTarget,
-			Type:          FieldType(structTypeToTerraformType(v.Type.Type())),
+			Type:          structTypeToTerraformType(v.Type.Type()),
 			Computed:      v.Readonly,
 		})
 	}
@@ -109,14 +142,28 @@ func (ft FieldType) Name() string {
 	return string(ft)
 }
 
-func structTypeToTerraformType(typ string) string {
+func structTypeToTerraformType(typ string) FieldType {
 	switch typ {
-	case "string":
-		return "String"
-	case "int64":
-		return "Int64"
-	case "bool":
-		return "Bool"
+	case string(clientCodegen.TypeString):
+		return TypeString
+	case string(clientCodegen.TypeInt64):
+		return TypeInt64
+	case string(clientCodegen.TypeBool):
+		return TypeBool
+	default:
+		return TypeUnknown
+	}
+}
+
+// sampleData generates sample value for provided type.
+func sampleData(typeName FieldType) string {
+	switch typeName {
+	case TypeString:
+		return `"sample"`
+	case TypeInt64:
+		return "42"
+	case TypeBool:
+		return "false"
 	default:
 		return "unknown"
 	}

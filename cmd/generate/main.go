@@ -26,8 +26,8 @@ func run() error {
 	switch subcommand {
 	case "resource":
 		return subcommandResource(args)
-	// case "test":
-	// 	return subcommandTest(args)
+	case "test":
+		return subcommandTest(args)
 	case "-h", "--help":
 		usage(appName)
 		return nil

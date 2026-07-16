@@ -117,7 +117,7 @@ func coreTypeToTerraformType(src, dest reflect.Value, stateValue attr.Value) err
 	var tfValue attr.Value
 
 	resolveEmpty := func(srcValue reflect.Value, targetValue attr.Value, value attr.Value, nullValue attr.Value) attr.Value {
-		if srcValue.IsZero() && targetValue.IsNull() {
+		if srcValue.IsZero() && (targetValue.IsNull() || targetValue.IsUnknown()) {
 			return nullValue
 		}
 		return value

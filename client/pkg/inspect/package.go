@@ -20,8 +20,13 @@ type (
 
 	Argument struct {
 		Name string
+
 		// Options holds a list of valid options for this argument, if any.
 		Options []string
+	}
+
+	Property struct {
+		Name string
 	}
 
 	// ConsoleItem is a raw representation of `/console/inspect` items
@@ -34,11 +39,15 @@ type (
 	}
 
 	Node struct {
-		Self      string
-		Name      string
-		Type      NodeType
-		Children  []*Node
-		Arguments []*Argument
+		Self                  string
+		Name                  string
+		Type                  NodeType
+		Children              []*Node
+		Arguments             []*Argument
+		ReadonlyPropertiesMap map[string]*Property
+
+		ChildrenMap  map[string]*Node
+		ArgumentsMap map[string]*Argument
 	}
 
 	Config struct {

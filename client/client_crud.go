@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/go-routeros/routeros/v3"
 )
@@ -186,7 +187,7 @@ func (client Mikrotik) Delete(d Resource) error {
 	log.Printf("[INFO] Running the mikrotik command: `%s`", cmd)
 	_, err = c.RunArgs(cmd)
 	if rosErr, ok := err.(*routeros.DeviceError); ok {
-		if rosErr.Sentence.Map["message"] == "no such item" {
+		if strings.Contains(rosErr.Sentence.Map["message"], "no such item") {
 			return NewNotFound(rosErr.Sentence.Map["message"])
 		}
 	}

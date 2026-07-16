@@ -79,8 +79,8 @@ func copyStruct(ctx context.Context, src, dest interface{}) error {
 			reflect.Slice:
 			// core type -> terraform type
 			// check if dest field is one of the Terraform types
-			if _, ok := destField.Interface().(attr.Value); ok {
-				if err := coreTypeToTerraformType(srcField, destField); err != nil {
+			if av, ok := destField.Interface().(attr.Value); ok {
+				if err := coreTypeToTerraformType(srcField, destField, av); err != nil {
 					return err
 				}
 				break
@@ -107,22 +107,36 @@ func copyStruct(ctx context.Context, src, dest interface{}) error {
 	return nil
 }
 
-func coreTypeToTerraformType(src, dest reflect.Value) error {
+// coreTypeToTerraformType sets Terraform's value based on raw Go value
+//
+// Nil vs empty logic.
+// By default, all values are nil.
+// If Go value is not empty then Terraform attribute is is always set to this value.
+// If Go value is empty, then Terraform attribute is set only when it is not Null (it was set in the configuration)
+func coreTypeToTerraformType(src, dest reflect.Value, stateValue attr.Value) error {
 	var tfValue attr.Value
+
+	resolveEmpty := func(srcValue reflect.Value, targetValue attr.Value, value attr.Value, nullValue attr.Value) attr.Value {
+		if srcValue.IsZero() && targetValue.IsNull() {
+			return nullValue
+		}
+		return value
+	}
+
 	switch src.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		tfValue = tftypes.Int64Value(src.Int())
+		tfValue = resolveEmpty(src, stateValue, tftypes.Int64Value(src.Int()), tftypes.Int64Null())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		tfValue = tftypes.Int64Value(int64(src.Uint()))
+		tfValue = resolveEmpty(src, stateValue, tftypes.Int64Value(int64(src.Uint())), tftypes.Int64Null())
 	case reflect.String:
-		tfValue = tftypes.StringValue(src.String())
+		tfValue = resolveEmpty(src, stateValue, tftypes.StringValue(src.String()), tftypes.StringNull())
 	case reflect.Bool:
-		tfValue = tftypes.BoolValue(src.Bool())
+		tfValue = resolveEmpty(src, stateValue, tftypes.BoolValue(src.Bool()), tftypes.BoolNull())
 	case reflect.Float32, reflect.Float64:
-		tfValue = tftypes.Float64Value(src.Float())
+		tfValue = resolveEmpty(src, stateValue, tftypes.Float64Value(src.Float()), tftypes.Float64Null())
 	case reflect.Slice:
 		var diags diag.Diagnostics
-		elements := []interface{}{}
+		elements := []any{}
 		for i := 0; i < src.Len(); i++ {
 			elements = append(elements, src.Index(i).Interface())
 		}
@@ -138,15 +152,15 @@ func coreTypeToTerraformType(src, dest reflect.Value) error {
 		default:
 			return fmt.Errorf("unsupported slice element type %q", kind)
 		}
-		var valueFromFunc func(t attr.Type, elements []interface{}) (attr.Value, diag.Diagnostics)
+		var valueFromFunc func(t attr.Type, elements []any) (attr.Value, diag.Diagnostics)
 
 		switch dest.Interface().(type) {
 		case tftypes.List:
-			valueFromFunc = func(t attr.Type, elements []interface{}) (attr.Value, diag.Diagnostics) {
+			valueFromFunc = func(t attr.Type, elements []any) (attr.Value, diag.Diagnostics) {
 				return tftypes.ListValueFrom(context.TODO(), t, elements)
 			}
 		case tftypes.Set:
-			valueFromFunc = func(t attr.Type, elements []interface{}) (attr.Value, diag.Diagnostics) {
+			valueFromFunc = func(t attr.Type, elements []any) (attr.Value, diag.Diagnostics) {
 				return tftypes.SetValueFrom(context.TODO(), t, elements)
 			}
 		default:

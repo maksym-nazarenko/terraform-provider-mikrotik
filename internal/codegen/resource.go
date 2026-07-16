@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"io"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -26,6 +27,14 @@ var (
 		"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier",
 		"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier",
 	}
+	terraformTestImports = []string{
+		"fmt",
+		"testing",
+		"github.com/ddelnano/terraform-provider-mikrotik/client",
+		"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource",
+		"github.com/hashicorp/terraform-plugin-sdk/v2/terraform",
+	}
+	attrNameNormalizerRegexp = regexp.MustCompile(`[^a-z0-9_]`)
 )
 
 type (
@@ -86,7 +95,7 @@ func GenerateTest(s *clientCodegen.Struct, w io.Writer) error {
 
 	data := &templateData{
 		ClientResource: s.Name,
-		Imports:        terraformResourceImports,
+		Imports:        terraformTestImports,
 		IDField: &Field{
 			Name:          "ID",
 			Type:          TypeString,
@@ -127,12 +136,24 @@ func convertClientFields(clientFields []*clientCodegen.Field) ([]*Field, error) 
 	result := make([]*Field, 0)
 
 	for _, v := range clientFields {
-		result = append(result, &Field{
+		f := &Field{
 			Name:          v.Name,
-			AttributeName: v.NameTarget,
+			AttributeName: normalizeTerraformAttributeName(v.NameTarget),
 			Type:          structTypeToTerraformType(v.Type.Type()),
 			Computed:      v.Readonly,
-		})
+		}
+		// the id field is always computed-only
+		if v.NameTarget == "id" {
+			f.Required = false
+			f.Optional = false
+			f.Computed = true
+		}
+
+		if !(f.Required || f.Computed || f.Optional) {
+			// if none set - treat the field as optional
+			f.Optional = true
+		}
+		result = append(result, f)
 	}
 
 	return result, nil
@@ -156,15 +177,19 @@ func structTypeToTerraformType(typ string) FieldType {
 }
 
 // sampleData generates sample value for provided type.
-func sampleData(typeName FieldType) string {
+func sampleData(typeName string) string {
 	switch typeName {
-	case TypeString:
+	case string(TypeString):
 		return `"sample"`
-	case TypeInt64:
+	case string(TypeInt64):
 		return "42"
-	case TypeBool:
+	case string(TypeBool):
 		return "false"
 	default:
 		return "unknown"
 	}
+}
+
+func normalizeTerraformAttributeName(name string) string {
+	return attrNameNormalizerRegexp.ReplaceAllString(name, "_")
 }

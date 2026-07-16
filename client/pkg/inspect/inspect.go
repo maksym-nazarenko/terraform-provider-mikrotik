@@ -161,7 +161,7 @@ func getCommandArguments(c *routeros.Client, command string) ([]*Argument, error
 			if compl.Type != TypeCompletion || !compl.Show {
 				continue
 			}
-			arg.Options = append(arg.Options, compl.Completion)
+			arg.Options = append(arg.Options, string(compl.Completion))
 		}
 		args = append(args, &arg)
 	}
@@ -193,11 +193,11 @@ func getNodeReadonlyProperties(c *routeros.Client, node *Node) (map[string]*Prop
 		if !prop.Show {
 			continue
 		}
-		if _, ok := argumentsMap[prop.Completion]; ok {
+		if _, ok := argumentsMap[string(prop.Completion)]; ok {
 			// property is listed as command argument, hence writable
 			continue
 		}
-		p := &Property{Name: prop.Completion}
+		p := &Property{Name: string(prop.Completion)}
 		readonlyProperties[p.Name] = p
 	}
 

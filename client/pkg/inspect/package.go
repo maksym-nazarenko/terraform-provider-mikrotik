@@ -29,13 +29,16 @@ type (
 		Name string
 	}
 
+	// UnquotedString represents a string that strips any quoting upon reading from RouterOS.
+	UnquotedString string
+
 	// ConsoleItem is a raw representation of `/console/inspect` items
 	ConsoleItem struct {
-		Name       string   `mikrotik:"name"`
-		NodeType   NodeType `mikrotik:"node-type"`
-		Type       Type     `mikrotik:"type"`
-		Completion string   `mikrotik:"completion"`
-		Show       bool     `mikrotik:"show"`
+		Name       string         `mikrotik:"name"`
+		NodeType   NodeType       `mikrotik:"node-type"`
+		Type       Type           `mikrotik:"type"`
+		Completion UnquotedString `mikrotik:"completion"`
+		Show       bool           `mikrotik:"show"`
 	}
 
 	Node struct {

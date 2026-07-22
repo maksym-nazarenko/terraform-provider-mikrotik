@@ -6,6 +6,7 @@ import (
 	"github.com/ddelnano/terraform-provider-mikrotik/client"
 	"github.com/ddelnano/terraform-provider-mikrotik/mikrotik/internal/utils"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 )
 
 type (
@@ -18,7 +19,7 @@ type (
 // GenericCreateResource creates the resource and sets the initial Terraform state.
 //
 // terraformModel and mikrotikModel must be passed as pointers
-func GenericCreateResource(terraformModel interface{}, mikrotikModel client.Resource, client *client.Mikrotik) CreateFunc {
+func GenericCreateResource(terraformModel any, mikrotikModel client.Resource, client *client.Mikrotik, terraformResource resource.Resource) CreateFunc {
 	return func(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 
 		diags := req.Plan.Get(ctx, terraformModel)
@@ -37,7 +38,7 @@ func GenericCreateResource(terraformModel interface{}, mikrotikModel client.Reso
 			return
 		}
 
-		if err := utils.MikrotikStructToTerraformModel(ctx, created, terraformModel); err != nil {
+		if err := utils.MikrotikStructToTerraformModel(ctx, created, terraformModel, getResourceSchema(terraformResource)); err != nil {
 			resp.Diagnostics.AddError("Cannot copy model: MikroTik -> Terraform", err.Error())
 			return
 		}
@@ -50,7 +51,7 @@ func GenericCreateResource(terraformModel interface{}, mikrotikModel client.Reso
 }
 
 // GenericReadResource refreshes the Terraform state with the latest data.
-func GenericReadResource(terraformModel interface{}, mikrotikModel client.Resource, mikrotikClient *client.Mikrotik) ReadFunc {
+func GenericReadResource(terraformModel any, mikrotikModel client.Resource, mikrotikClient *client.Mikrotik, terraformResource resource.Resource) ReadFunc {
 	return func(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 		resp.Diagnostics.Append(req.State.Get(ctx, terraformModel)...)
 		if resp.Diagnostics.HasError() {
@@ -73,7 +74,7 @@ func GenericReadResource(terraformModel interface{}, mikrotikModel client.Resour
 			)
 			return
 		}
-		if err := utils.MikrotikStructToTerraformModel(ctx, resource, terraformModel); err != nil {
+		if err := utils.MikrotikStructToTerraformModel(ctx, resource, terraformModel, getResourceSchema(terraformResource)); err != nil {
 			resp.Diagnostics.AddError("Cannot copy model: MikroTik -> Terraform", err.Error())
 			return
 		}
@@ -86,7 +87,7 @@ func GenericReadResource(terraformModel interface{}, mikrotikModel client.Resour
 }
 
 // GenericUpdateResource updates the resource and sets the updated Terraform state on success.
-func GenericUpdateResource(terraformModel interface{}, mikrotikModel client.Resource, client *client.Mikrotik) UpdateFunc {
+func GenericUpdateResource(terraformModel any, mikrotikModel client.Resource, client *client.Mikrotik, terraformResource resource.Resource) UpdateFunc {
 	return func(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 		resp.Diagnostics.Append(req.Plan.Get(ctx, terraformModel)...)
 		if resp.Diagnostics.HasError() {
@@ -101,7 +102,7 @@ func GenericUpdateResource(terraformModel interface{}, mikrotikModel client.Reso
 			resp.Diagnostics.AddError("Update failed", err.Error())
 			return
 		}
-		if err := utils.MikrotikStructToTerraformModel(ctx, updated, terraformModel); err != nil {
+		if err := utils.MikrotikStructToTerraformModel(ctx, updated, terraformModel, getResourceSchema(terraformResource)); err != nil {
 			resp.Diagnostics.AddError("Cannot copy model: MikroTik -> Terraform", err.Error())
 			return
 		}
@@ -111,7 +112,7 @@ func GenericUpdateResource(terraformModel interface{}, mikrotikModel client.Reso
 }
 
 // GenericDeleteResource deletes the resource and removes the Terraform state on success.
-func GenericDeleteResource(terraformModel interface{}, mikrotikModel client.Resource, client *client.Mikrotik) DeleteFunc {
+func GenericDeleteResource(terraformModel any, mikrotikModel client.Resource, client *client.Mikrotik) DeleteFunc {
 	return func(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 		resp.Diagnostics.Append(req.State.Get(ctx, terraformModel)...)
 		if resp.Diagnostics.HasError() {
@@ -128,4 +129,11 @@ func GenericDeleteResource(terraformModel interface{}, mikrotikModel client.Reso
 			return
 		}
 	}
+}
+
+func getResourceSchema(r resource.Resource) schema.Schema {
+	schemaResp := resource.SchemaResponse{}
+	r.Schema(context.TODO(), resource.SchemaRequest{}, &schemaResp)
+
+	return schemaResp.Schema
 }

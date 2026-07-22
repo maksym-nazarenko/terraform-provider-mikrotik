@@ -85,7 +85,7 @@ func (r *pool) Create(ctx context.Context, req resource.CreateRequest, resp *res
 	var terraformModel poolModel
 	var mikrotikModel client.Pool
 
-	GenericCreateResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericCreateResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Read refreshes the Terraform state with the latest data.
@@ -93,7 +93,7 @@ func (r *pool) Read(ctx context.Context, req resource.ReadRequest, resp *resourc
 	var terraformModel poolModel
 	var mikrotikModel client.Pool
 
-	GenericReadResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericReadResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
@@ -131,7 +131,7 @@ func (r *pool) Update(ctx context.Context, req resource.UpdateRequest, resp *res
 		resp.Diagnostics.AddError("Update failed", err.Error())
 		return
 	}
-	if err := utils.MikrotikStructToTerraformModel(ctx, updated, &terraformModel); err != nil {
+	if err := utils.MikrotikStructToTerraformModel(ctx, updated, &terraformModel, getResourceSchema(r)); err != nil {
 		resp.Diagnostics.AddError("Cannot copy model: MikroTik -> Terraform", err.Error())
 		return
 	}

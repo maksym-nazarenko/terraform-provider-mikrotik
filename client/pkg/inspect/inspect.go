@@ -19,7 +19,11 @@ type (
 
 // Do runs inspection against remote RouterOS instance.
 func Do(c *routeros.Client, config *Config) (*Node, error) {
-	root := strings.TrimRight(config.Root, "/")
+	root := strings.TrimSpace(config.Root)
+	if len(root) > 1 {
+		root = strings.TrimRight(config.Root, "/")
+	}
+
 	items, err := inspectPath(c, root, requestChild)
 	if err != nil {
 		return nil, err
@@ -121,7 +125,9 @@ func inspectPath(c *routeros.Client, commandPath string, request inspectRequest)
 	pathParam := "input"
 	switch request {
 	case requestChild, requestCompletion:
-		normalizedCommand = strings.ReplaceAll(commandPath[1:], "/", ",")
+		if len(commandPath) > 0 {
+			normalizedCommand = strings.ReplaceAll(commandPath[1:], "/", ",")
+		}
 		pathParam = "path"
 	}
 	cmd := []string{"/console/inspect", "as-value", "=" + pathParam + "=" + normalizedCommand, "=request=" + string(request)}
@@ -152,7 +158,7 @@ func getCommandArguments(c *routeros.Client, command string) ([]*Argument, error
 			Name: v.Name,
 		}
 
-		completions, err := inspectPath(c, command+"/"+v.Name, requestCompletion)
+		completions, err := inspectPath(c, buildItemPath(command, v.Name), requestCompletion)
 		if err != nil {
 			return nil, err
 		}
@@ -161,7 +167,7 @@ func getCommandArguments(c *routeros.Client, command string) ([]*Argument, error
 			if compl.Type != TypeCompletion || !compl.Show {
 				continue
 			}
-			arg.Options = append(arg.Options, compl.Completion)
+			arg.Options = append(arg.Options, string(compl.Completion))
 		}
 		args = append(args, &arg)
 	}
@@ -193,11 +199,11 @@ func getNodeReadonlyProperties(c *routeros.Client, node *Node) (map[string]*Prop
 		if !prop.Show {
 			continue
 		}
-		if _, ok := argumentsMap[prop.Completion]; ok {
+		if _, ok := argumentsMap[string(prop.Completion)]; ok {
 			// property is listed as command argument, hence writable
 			continue
 		}
-		p := &Property{Name: prop.Completion}
+		p := &Property{Name: string(prop.Completion)}
 		readonlyProperties[p.Name] = p
 	}
 
@@ -216,11 +222,30 @@ func getNodeChildren(c *routeros.Client, command string) ([]*Node, error) {
 			continue
 		}
 		children = append(children, &Node{
-			Self: command + "/" + v.Name,
+			Self: buildItemPath(command, v.Name),
 			Name: v.Name,
 			Type: v.NodeType,
 		})
 	}
 
 	return children, nil
+}
+
+func buildItemPath(segments ...string) string {
+	if len(segments) == 0 {
+		return ""
+	}
+
+	buf := strings.Builder{}
+	var normalizedSegment string
+	for _, seg := range segments {
+		normalizedSegment = strings.Trim(seg, "/")
+		if len(normalizedSegment) == 0 {
+			continue
+		}
+		buf.WriteString("/")
+		buf.WriteString(normalizedSegment)
+	}
+
+	return "/" + strings.Trim(buf.String(), "/")
 }

@@ -93,7 +93,7 @@ func (r *script) Create(ctx context.Context, req resource.CreateRequest, resp *r
 		return
 	}
 
-	GenericCreateResource(&plan, &client.Script{}, r.client)(ctx, req, resp)
+	GenericCreateResource(&plan, &client.Script{}, r.client, r)(ctx, req, resp)
 }
 
 // Read refreshes the Terraform state with the latest data.
@@ -103,7 +103,7 @@ func (r *script) Read(ctx context.Context, req resource.ReadRequest, resp *resou
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	GenericReadResource(&state, &client.Script{}, r.client)(ctx, req, resp)
+	GenericReadResource(&state, &client.Script{}, r.client, r)(ctx, req, resp)
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
@@ -114,7 +114,7 @@ func (r *script) Update(ctx context.Context, req resource.UpdateRequest, resp *r
 		return
 	}
 
-	GenericUpdateResource(&plan, &client.Script{}, r.client)(ctx, req, resp)
+	GenericUpdateResource(&plan, &client.Script{}, r.client, r)(ctx, req, resp)
 }
 
 // Delete deletes the resource and removes the Terraform state on success.

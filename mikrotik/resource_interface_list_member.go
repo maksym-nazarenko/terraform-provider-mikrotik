@@ -71,21 +71,21 @@ func (s *interfaceListMember) Schema(_ context.Context, _ resource.SchemaRequest
 func (r *interfaceListMember) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var terraformModel interfaceListMemberModel
 	var mikrotikModel client.InterfaceListMember
-	GenericCreateResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericCreateResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Read refreshes the Terraform state with the latest data.
 func (r *interfaceListMember) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var terraformModel interfaceListMemberModel
 	var mikrotikModel client.InterfaceListMember
-	GenericReadResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericReadResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *interfaceListMember) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var terraformModel interfaceListMemberModel
 	var mikrotikModel client.InterfaceListMember
-	GenericUpdateResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericUpdateResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Delete deletes the resource and removes the Terraform state on success.

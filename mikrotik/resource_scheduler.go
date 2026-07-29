@@ -90,21 +90,21 @@ func (s *scheduler) Schema(_ context.Context, _ resource.SchemaRequest, resp *re
 func (s *scheduler) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var terraformModel schedulerModel
 	var mikrotikModel client.Scheduler
-	GenericCreateResource(&terraformModel, &mikrotikModel, s.client)(ctx, req, resp)
+	GenericCreateResource(&terraformModel, &mikrotikModel, s.client, s)(ctx, req, resp)
 }
 
 // Read refreshes the Terraform state with the latest data.
 func (s *scheduler) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var terraformModel schedulerModel
 	var mikrotikModel client.Scheduler
-	GenericReadResource(&terraformModel, &mikrotikModel, s.client)(ctx, req, resp)
+	GenericReadResource(&terraformModel, &mikrotikModel, s.client, s)(ctx, req, resp)
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (s *scheduler) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var terraformModel schedulerModel
 	var mikrotikModel client.Scheduler
-	GenericUpdateResource(&terraformModel, &mikrotikModel, s.client)(ctx, req, resp)
+	GenericUpdateResource(&terraformModel, &mikrotikModel, s.client, s)(ctx, req, resp)
 }
 
 // Delete deletes the resource and removes the Terraform state on success.

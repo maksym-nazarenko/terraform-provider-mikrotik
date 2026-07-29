@@ -89,21 +89,21 @@ func (s *ipAddress) Schema(_ context.Context, _ resource.SchemaRequest, resp *re
 func (r *ipAddress) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var terraformModel ipAddressModel
 	var mikrotikModel client.IpAddress
-	GenericCreateResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericCreateResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Read refreshes the Terraform state with the latest data.
 func (r *ipAddress) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var terraformModel ipAddressModel
 	var mikrotikModel client.IpAddress
-	GenericReadResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericReadResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *ipAddress) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var terraformModel ipAddressModel
 	var mikrotikModel client.IpAddress
-	GenericUpdateResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericUpdateResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Delete deletes the resource and removes the Terraform state on success.

@@ -88,21 +88,21 @@ func (s *bridgePort) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 func (r *bridgePort) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var terraformModel bridgePortModel
 	var mikrotikModel client.BridgePort
-	GenericCreateResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericCreateResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Read refreshes the Terraform state with the latest data.
 func (r *bridgePort) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var terraformModel bridgePortModel
 	var mikrotikModel client.BridgePort
-	GenericReadResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericReadResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *bridgePort) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var terraformModel bridgePortModel
 	var mikrotikModel client.BridgePort
-	GenericUpdateResource(&terraformModel, &mikrotikModel, r.client)(ctx, req, resp)
+	GenericUpdateResource(&terraformModel, &mikrotikModel, r.client, r)(ctx, req, resp)
 }
 
 // Delete deletes the resource and removes the Terraform state on success.

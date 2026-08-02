@@ -15,6 +15,12 @@ import (
 	"github.com/go-routeros/routeros/v3/proto"
 )
 
+const (
+	tagMikrotik    = "mikrotik"
+	tagReadonly    = "readonly"
+	tagFallthrough = "fallthrough"
+)
+
 // Mikrotik struct defines connection parameters for RouterOS client
 type Mikrotik struct {
 	Host     string
@@ -53,7 +59,33 @@ func NewClient(host, username, password string, tls bool, caCertificate string, 
 	}
 }
 
-func Marshal(c string, s interface{}) []string {
+func Marshal(c string, s any) []string {
+
+	values, err := marshalStruct(s)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(values)%2 != 0 {
+		log.Fatal("dont know how to marshal odd number of command elements")
+	}
+	cmd := make([]string, 0, len(values)+1)
+	cmd = append(cmd, c)
+	buf := strings.Builder{}
+	for i := 0; i < len(values); i += 2 {
+		buf.Reset()
+		buf.WriteString("=")
+		buf.WriteString(values[i])
+		buf.WriteString("=")
+		buf.WriteString(values[i+1])
+
+		cmd = append(cmd, buf.String())
+	}
+
+	return cmd
+}
+
+func marshalStruct(s any) ([]string, error) {
 	var elem reflect.Value
 	rv := reflect.ValueOf(s)
 
@@ -64,13 +96,13 @@ func Marshal(c string, s interface{}) []string {
 		elem = rv
 	}
 
-	cmd := []string{c}
+	cmd := []string{}
 
 	for i := 0; i < elem.NumField(); i++ {
 		value := elem.Field(i)
 		fieldType := elem.Type().Field(i)
 		// fetch mikrotik struct tag, which supports multiple values separated by commas
-		tags := fieldType.Tag.Get("mikrotik")
+		tags := fieldType.Tag.Get(tagMikrotik)
 		// extract tag value that is the Mikrotik property name
 		// it is assumed that the first is mikrotik field name
 		mikrotikTags := strings.Split(tags, ",")
@@ -86,7 +118,7 @@ func Marshal(c string, s interface{}) []string {
 
 		// skip attributes marked as `readonly` (computed by RouterOS), such as the following wireguard props
 		// https://help.mikrotik.com/docs/display/ROS/WireGuard#WireGuard-Read-onlyproperties
-		if contains(mikrotikTags, "readonly") {
+		if contains(mikrotikTags, tagReadonly) {
 			// if a struct field contains the tag value of 'readonly', do not marshal it
 			continue
 		}
@@ -96,7 +128,7 @@ func Marshal(c string, s interface{}) []string {
 		if mar, ok := value.Interface().(Marshaler); ok {
 			// if type supports custom marshaling, use that result immediately
 			stringValue := mar.MarshalMikrotik()
-			cmd = append(cmd, fmt.Sprintf("=%s=%s", mikrotikPropName, stringValue))
+			cmd = append(cmd, mikrotikPropName, stringValue)
 			continue
 		}
 
@@ -105,21 +137,33 @@ func Marshal(c string, s interface{}) []string {
 		if !value.IsZero() || value.Kind() == reflect.Bool {
 			switch value.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				cmd = append(cmd, fmt.Sprintf("=%s=%d", mikrotikPropName, elem.Field(i).Interface()))
+				cmd = append(cmd, mikrotikPropName, strconv.FormatInt(elem.Field(i).Int(), 10))
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				cmd = append(cmd, fmt.Sprintf("=%s=%d", mikrotikPropName, elem.Field(i).Interface()))
+				cmd = append(cmd, mikrotikPropName, strconv.FormatUint(elem.Field(i).Uint(), 10))
 			case reflect.String:
 				stringValue := elem.Field(i).Interface().(string)
-				cmd = append(cmd, fmt.Sprintf("=%s=%s", mikrotikPropName, stringValue))
+				cmd = append(cmd, mikrotikPropName, stringValue)
 			case reflect.Bool:
 				boolValue := elem.Field(i).Interface().(bool)
 				stringBoolValue := boolToMikrotikBool(boolValue)
-				cmd = append(cmd, fmt.Sprintf("=%s=%s", mikrotikPropName, stringBoolValue))
+				cmd = append(cmd, mikrotikPropName, stringBoolValue)
+			case reflect.Struct:
+				values, err := marshalStruct(elem.Field(i).Interface())
+				if err != nil {
+					return nil, err
+				}
+				if len(values)%2 != 0 {
+					return nil, errors.New("struct marshalling results in odd number of command elements")
+				}
+				structFieldNamePrefix := mikrotikPropName + "."
+				for i := 0; i < len(values); i += 2 {
+					cmd = append(cmd, structFieldNamePrefix+values[i], values[i+1])
+				}
 			}
 		}
 	}
 
-	return cmd
+	return cmd, nil
 }
 
 // Unmarshal decodes MikroTik's API reply into Go object

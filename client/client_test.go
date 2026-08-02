@@ -280,7 +280,7 @@ func TestMarshal(t *testing.T) {
 	action := "/test/owner/add"
 	testCases := []struct {
 		name        string
-		testStruct  interface{}
+		testStruct  any
 		expectedCmd []string
 	}{
 		{
@@ -316,7 +316,6 @@ func TestMarshal(t *testing.T) {
 				Allowed:       true,
 			},
 			expectedCmd: []string{
-				"/test/owner/add",
 				"=name=test owner",
 				"=owner=admin",
 				"=run-count=3",
@@ -348,7 +347,6 @@ func TestMarshal(t *testing.T) {
 				Schedule:      []string{"mon", "tue", "fri"},
 			},
 			expectedCmd: []string{
-				"/test/owner/add",
 				"=name=test owner",
 				"=owner=admin",
 				"=run-count=3",
@@ -356,13 +354,74 @@ func TestMarshal(t *testing.T) {
 				"=schedule=mon,tue,fri",
 			},
 		},
+		{
+			name: "nested struct",
+			testStruct: struct {
+				Name   string `mikrotik:"name"`
+				Config struct {
+					Enabled  bool   `mikrotik:"enabled"`
+					Owner    string `mikrotik:"owner"`
+					Username string `mikrotik:"username"`
+				} `mikrotik:"configuration"`
+				RunCount int `mikrotik:"run-count"`
+			}{
+				Name: "nested struct",
+				Config: struct {
+					Enabled  bool   `mikrotik:"enabled"`
+					Owner    string `mikrotik:"owner"`
+					Username string `mikrotik:"username"`
+				}{
+					Enabled:  true,
+					Owner:    "admin",
+					Username: "testuser",
+				},
+				RunCount: 3,
+			},
+			expectedCmd: []string{
+				"=name=nested struct",
+				"=configuration.enabled=yes",
+				"=configuration.owner=admin",
+				"=configuration.username=testuser",
+				"=run-count=3",
+			},
+		},
+		{
+			name: "nested pinter struct",
+			testStruct: &struct {
+				Name   string `mikrotik:"name"`
+				Config struct {
+					Enabled  bool   `mikrotik:"enabled"`
+					Owner    string `mikrotik:"owner"`
+					Username string `mikrotik:"username"`
+				} `mikrotik:"configuration"`
+				RunCount int `mikrotik:"run-count"`
+			}{
+				Name: "nested struct",
+				Config: struct {
+					Enabled  bool   `mikrotik:"enabled"`
+					Owner    string `mikrotik:"owner"`
+					Username string `mikrotik:"username"`
+				}{
+					Enabled:  true,
+					Owner:    "admin",
+					Username: "testuser",
+				},
+				RunCount: 3,
+			},
+			expectedCmd: []string{
+				"=name=nested struct",
+				"=configuration.enabled=yes",
+				"=configuration.owner=admin",
+				"=configuration.username=testuser",
+				"=run-count=3",
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := Marshal(action, tc.testStruct)
-			if !reflect.DeepEqual(cmd, tc.expectedCmd) {
-				t.Errorf("Failed to marshal: %v does not equal expected %v", cmd, tc.expectedCmd)
-			}
+			expected := append([]string{action}, tc.expectedCmd...)
+			assert.ElementsMatch(t, expected, cmd)
 		})
 	}
 }

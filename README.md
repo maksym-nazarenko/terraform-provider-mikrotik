@@ -1,5 +1,12 @@
 # Mikrotik provider for Terraform 
 
+
+:information_source:
+
+This is a nightly branch for the Mikrotik provider for Terraform.
+
+It might be not stable but contains all the latest features and fixes. If you want to use a stable version, please check the [releases](https://github.com/ddelnano/terraform-provider-mikrotik/releases).
+
 ## Intro
 
 This is a terraform provider for managing resources on your RouterOS device. To see what resources and data sources are supported, please see the [documentation](https://registry.terraform.io/providers/ddelnano/mikrotik/latest/docs) on the terraform registry.

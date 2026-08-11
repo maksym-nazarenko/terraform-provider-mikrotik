@@ -10,18 +10,19 @@ import (
 	"github.com/ddelnano/terraform-provider-mikrotik/client"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // MikrotikStructToTerraformModel is a wrapper for copyStruct() to ensure proper src/dest typing
-func MikrotikStructToTerraformModel(ctx context.Context, src client.Resource, dest interface{}) error {
-	return copyStruct(ctx, src, dest)
+func MikrotikStructToTerraformModel(ctx context.Context, src client.Resource, dest any, resourceSchema schema.Schema) error {
+	return copyStruct(ctx, src, dest, resourceSchema)
 }
 
 // TerraformModelToMikrotikStruct is a wrapper for copyStruct() to ensure proper src/dest typing
 func TerraformModelToMikrotikStruct(ctx context.Context, src interface{}, dest client.Resource) error {
-	return copyStruct(ctx, src, dest)
+	return copyStruct(ctx, src, dest, schema.Schema{})
 }
 
 // copyStruct copies fields of src struct to fields of dest struct.
@@ -30,7 +31,7 @@ func TerraformModelToMikrotikStruct(ctx context.Context, src interface{}, dest c
 // Having multiple fields with the same name but different case leads to unpredictable behavior.
 //
 // If dest struct has no field with particular name, it is skipped.
-func copyStruct(ctx context.Context, src, dest interface{}) error {
+func copyStruct(ctx context.Context, src, dest any, resourceSchema schema.Schema) error {
 	if reflect.ValueOf(dest).Kind() != reflect.Pointer {
 		return errors.New("destination must be a pointer")
 	}
@@ -79,8 +80,8 @@ func copyStruct(ctx context.Context, src, dest interface{}) error {
 			reflect.Slice:
 			// core type -> terraform type
 			// check if dest field is one of the Terraform types
-			if _, ok := destField.Interface().(attr.Value); ok {
-				if err := coreTypeToTerraformType(srcField, destField); err != nil {
+			if av, ok := destField.Interface().(attr.Value); ok {
+				if err := coreTypeToTerraformType(srcField, destField, av, destFieldType, resourceSchema); err != nil {
 					return err
 				}
 				break
@@ -107,22 +108,56 @@ func copyStruct(ctx context.Context, src, dest interface{}) error {
 	return nil
 }
 
-func coreTypeToTerraformType(src, dest reflect.Value) error {
-	var tfValue attr.Value
+// coreTypeToTerraformType sets Terraform's value based on raw Go value
+//
+// Nil vs empty logic.
+// By default, all values are nil.
+// If Go value is not empty then Terraform attribute is is always set to this value.
+// If Go value is empty, then Terraform attribute is set only when it is not Null (it was set in the configuration) or it is computed
+func coreTypeToTerraformType(src, dest reflect.Value, stateValue attr.Value, destFieldType reflect.StructField, resourceSchema schema.Schema) error {
+	var (
+		tfValue  attr.Value
+		attrName string
+	)
+
+	if tags := destFieldType.Tag.Get("tfsdk"); tags != "" {
+		if tagsList := strings.Split(tags, ","); len(tagsList) > 0 {
+			attrName = tagsList[0]
+		}
+	}
+
+	if attrName == "" {
+		return fmt.Errorf("cannot get attribute name from field tag for field %q", destFieldType.Name)
+	}
+
+	var resourceAttr schema.Attribute
+	var ok bool
+	if resourceAttr, ok = resourceSchema.Attributes[attrName]; !ok {
+		return fmt.Errorf("cannot get attribute from resource schema %q", attrName)
+	}
+
+	resolveEmpty := func(srcValue reflect.Value, stateValue attr.Value, value attr.Value, nullValue attr.Value) attr.Value {
+		if srcValue.IsZero() && stateValue.IsNull() && resourceAttr.IsOptional() && !resourceAttr.IsComputed() {
+			return nullValue
+		}
+
+		return value
+	}
+
 	switch src.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		tfValue = tftypes.Int64Value(src.Int())
+		tfValue = resolveEmpty(src, stateValue, tftypes.Int64Value(src.Int()), tftypes.Int64Null())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		tfValue = tftypes.Int64Value(int64(src.Uint()))
+		tfValue = resolveEmpty(src, stateValue, tftypes.Int64Value(int64(src.Uint())), tftypes.Int64Null())
 	case reflect.String:
-		tfValue = tftypes.StringValue(src.String())
+		tfValue = resolveEmpty(src, stateValue, tftypes.StringValue(src.String()), tftypes.StringNull())
 	case reflect.Bool:
-		tfValue = tftypes.BoolValue(src.Bool())
+		tfValue = resolveEmpty(src, stateValue, tftypes.BoolValue(src.Bool()), tftypes.BoolNull())
 	case reflect.Float32, reflect.Float64:
-		tfValue = tftypes.Float64Value(src.Float())
+		tfValue = resolveEmpty(src, stateValue, tftypes.Float64Value(src.Float()), tftypes.Float64Null())
 	case reflect.Slice:
 		var diags diag.Diagnostics
-		elements := []interface{}{}
+		elements := []any{}
 		for i := 0; i < src.Len(); i++ {
 			elements = append(elements, src.Index(i).Interface())
 		}
@@ -138,16 +173,33 @@ func coreTypeToTerraformType(src, dest reflect.Value) error {
 		default:
 			return fmt.Errorf("unsupported slice element type %q", kind)
 		}
-		var valueFromFunc func(t attr.Type, elements []interface{}) (attr.Value, diag.Diagnostics)
+		var valueFromFunc func(t attr.Type, elements []any) (attr.Value, diag.Diagnostics)
 
 		switch dest.Interface().(type) {
 		case tftypes.List:
-			valueFromFunc = func(t attr.Type, elements []interface{}) (attr.Value, diag.Diagnostics) {
-				return tftypes.ListValueFrom(context.TODO(), t, elements)
+			valueFromFunc = func(t attr.Type, elements []any) (attr.Value, diag.Diagnostics) {
+				val, diags := tftypes.ListValueFrom(context.TODO(), t, elements)
+				if diags.ErrorsCount() > 0 {
+					return nil, diags
+				}
+				if src.IsZero() {
+					val = tftypes.ListNull(t)
+				}
+				v := resolveEmpty(src, stateValue, val, tftypes.ListNull(t))
+				return v, diags
 			}
 		case tftypes.Set:
-			valueFromFunc = func(t attr.Type, elements []interface{}) (attr.Value, diag.Diagnostics) {
-				return tftypes.SetValueFrom(context.TODO(), t, elements)
+			valueFromFunc = func(t attr.Type, elements []any) (attr.Value, diag.Diagnostics) {
+				val, diags := tftypes.SetValueFrom(context.TODO(), t, elements)
+				if diags.ErrorsCount() > 0 {
+					return nil, diags
+				}
+				if src.IsZero() {
+					val = tftypes.SetNull(t)
+				}
+				v := resolveEmpty(src, stateValue, val, tftypes.SetNull(t))
+
+				return v, diags
 			}
 		default:
 			return fmt.Errorf("unsupported destination Terraform type %v", reflect.TypeOf(dest).Name())

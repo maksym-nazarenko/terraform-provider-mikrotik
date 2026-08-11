@@ -6,7 +6,8 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/ddelnano/terraform-provider-mikrotik/client/internal/codegen/utils"
+	codegenPkg "github.com/ddelnano/terraform-provider-mikrotik/client/pkg/codegen"
+	"github.com/ddelnano/terraform-provider-mikrotik/client/pkg/codegen/utils"
 	"github.com/ddelnano/terraform-provider-mikrotik/client/pkg/inspect"
 )
 
@@ -66,10 +67,10 @@ func GenerateMikrotikResource(resourceName string, node *inspect.Node, w io.Writ
 	)
 }
 
-func GenerateMikrotikResourceTest(s *Struct, w io.Writer) error {
+func GenerateMikrotikResourceTest(s *codegenPkg.Struct, w io.Writer) error {
 	data := struct {
 		ResourceName string
-		Fields       []*Field
+		Fields       []*codegenPkg.Field
 	}{
 		ResourceName: s.Name,
 		Fields:       s.Fields,
@@ -105,13 +106,13 @@ func generateCode(w io.Writer, templateName, templateBody string, templateData a
 // sampleData generates sample value for provided type.
 func sampleData(typeName string) string {
 	switch typeName {
-	case string(TypeString):
+	case string(codegenPkg.TypeString):
 		return `"sample"`
-	case string(TypeInt64):
+	case string(codegenPkg.TypeInt64):
 		return "42"
-	case string(TypeBool):
+	case string(codegenPkg.TypeBool):
 		return "false"
 	default:
-		return `"` + string(TypeUnknown) + `"`
+		return `"` + string(codegenPkg.TypeUnknown) + `"`
 	}
 }

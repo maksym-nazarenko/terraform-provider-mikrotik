@@ -114,21 +114,21 @@ func (i *interfaceWireguard) Schema(_ context.Context, _ resource.SchemaRequest,
 func (i *interfaceWireguard) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var terraformModel interfaceWireguardModel
 	var mikrotikModel client.InterfaceWireguard
-	GenericCreateResource(&terraformModel, &mikrotikModel, i.client)(ctx, req, resp)
+	GenericCreateResource(&terraformModel, &mikrotikModel, i.client, i)(ctx, req, resp)
 }
 
 // Read refreshes the Terraform state with the latest data.
 func (i *interfaceWireguard) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var terraformModel interfaceWireguardModel
 	var mikrotikModel client.InterfaceWireguard
-	GenericReadResource(&terraformModel, &mikrotikModel, i.client)(ctx, req, resp)
+	GenericReadResource(&terraformModel, &mikrotikModel, i.client, i)(ctx, req, resp)
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (i *interfaceWireguard) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var terraformModel interfaceWireguardModel
 	var mikrotikModel client.InterfaceWireguard
-	GenericUpdateResource(&terraformModel, &mikrotikModel, i.client)(ctx, req, resp)
+	GenericUpdateResource(&terraformModel, &mikrotikModel, i.client, i)(ctx, req, resp)
 }
 
 // Delete deletes the resource and removes the Terraform state on success.

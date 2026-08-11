@@ -7,18 +7,62 @@ import (
 	"github.com/ddelnano/terraform-provider-mikrotik/client"
 	"github.com/ddelnano/terraform-provider-mikrotik/client/types"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCopyStruct(t *testing.T) {
+	type (
+		simpleStruct struct {
+			String     string
+			ExtraField int
+			Int        int
+			Int8       int8
+			Int16      int16
+			Int32      int32
+			Int64      int64
+			Uint       uint
+			Uint8      uint8
+			Uint16     uint16
+			Uint32     uint32
+			Uint64     uint64
+			Boolean    bool
+			Float32    float32
+			Float64    float64
+			IntList    []int
+			UintList   []uint
+			StringList []string
+		}
+
+		terraformStruct struct {
+			String        tftypes.String `tfsdk:"string"`
+			Int           tftypes.Int64  `tfsdk:"int"`
+			Int8          tftypes.Int64  `tfsdk:"int_8"`
+			Int16         tftypes.Int64  `tfsdk:"int_16"`
+			Int32         tftypes.Int64  `tfsdk:"int_32"`
+			Int64         tftypes.Int64  `tfsdk:"int_64"`
+			Uint          tftypes.Int64  `tfsdk:"uint"`
+			Uint8         tftypes.Int64  `tfsdk:"uint_8"`
+			Uint16        tftypes.Int64  `tfsdk:"uint_16"`
+			Uint32        tftypes.Int64  `tfsdk:"uint_32"`
+			Uint64        tftypes.Int64  `tfsdk:"uint_64"`
+			UnmappedField tftypes.String `tfsdk:"unmapped_field"`
+			Boolean       tftypes.Bool   `tfsdk:"boolean"`
+			IntList       tftypes.List   `tfsdk:"int_list"`
+			UintList      tftypes.List   `tfsdk:"uint_list"`
+			StringList    tftypes.List   `tfsdk:"string_list"`
+		}
+	)
+
 	testCases := []struct {
-		name        string
-		src         interface{}
-		dest        interface{}
-		expected    interface{}
-		expectError bool
+		name           string
+		src            any
+		dest           any
+		expected       any
+		resourceSchema schema.Schema
+		expectError    bool
 	}{
 		{
 			name: "same fields",
@@ -287,26 +331,7 @@ func TestCopyStruct(t *testing.T) {
 		},
 		{
 			name: "core type to terraform type",
-			src: struct {
-				String     string
-				ExtraField int
-				Int        int
-				Int8       int8
-				Int16      int16
-				Int32      int32
-				Int64      int64
-				Uint       uint
-				Uint8      uint8
-				Uint16     uint16
-				Uint32     uint32
-				Uint64     uint64
-				Boolean    bool
-				Float32    float32
-				Float64    float64
-				IntList    []int
-				UintList   []uint
-				StringList []string
-			}{
+			src: simpleStruct{
 				String:     "name new",
 				ExtraField: 30,
 				Int:        10,
@@ -324,24 +349,7 @@ func TestCopyStruct(t *testing.T) {
 				UintList:   []uint{10, 20, 30},
 				StringList: []string{"new value"},
 			},
-			dest: &struct {
-				String        tftypes.String
-				Int           tftypes.Int64
-				Int8          tftypes.Int64
-				Int16         tftypes.Int64
-				Int32         tftypes.Int64
-				Int64         tftypes.Int64
-				Uint          tftypes.Int64
-				Uint8         tftypes.Int64
-				Uint16        tftypes.Int64
-				Uint32        tftypes.Int64
-				Uint64        tftypes.Int64
-				UnmappedField tftypes.String
-				Boolean       tftypes.Bool
-				IntList       tftypes.List
-				UintList      tftypes.List
-				StringList    tftypes.List
-			}{
+			dest: &terraformStruct{
 				String:        tftypes.StringValue("field name"),
 				Int:           tftypes.Int64Value(20),
 				UnmappedField: tftypes.StringValue("unmapped field"),
@@ -358,24 +366,27 @@ func TestCopyStruct(t *testing.T) {
 						tftypes.StringValue("old value 2"),
 					}),
 			},
-			expected: &struct {
-				String        tftypes.String
-				Int           tftypes.Int64
-				Int8          tftypes.Int64
-				Int16         tftypes.Int64
-				Int32         tftypes.Int64
-				Int64         tftypes.Int64
-				Uint          tftypes.Int64
-				Uint8         tftypes.Int64
-				Uint16        tftypes.Int64
-				Uint32        tftypes.Int64
-				Uint64        tftypes.Int64
-				UnmappedField tftypes.String
-				Boolean       tftypes.Bool
-				IntList       tftypes.List
-				UintList      tftypes.List
-				StringList    tftypes.List
-			}{
+			resourceSchema: schema.Schema{
+				Attributes: map[string]schema.Attribute{
+					"string":         schema.StringAttribute{},
+					"int":            schema.Int64Attribute{},
+					"int_8":          schema.Int64Attribute{},
+					"int_16":         schema.Int64Attribute{},
+					"int_32":         schema.Int64Attribute{},
+					"int_64":         schema.Int64Attribute{},
+					"uint":           schema.Int64Attribute{},
+					"uint_8":         schema.Int64Attribute{},
+					"uint_16":        schema.Int64Attribute{},
+					"uint_32":        schema.Int64Attribute{},
+					"uint_64":        schema.Int64Attribute{},
+					"unmapped_field": schema.StringAttribute{},
+					"boolean":        schema.BoolAttribute{},
+					"int_list":       schema.ListAttribute{},
+					"uint_list":      schema.ListAttribute{},
+					"string_list":    schema.ListAttribute{},
+				},
+			},
+			expected: &terraformStruct{
 				String:        tftypes.StringValue("name new"),
 				Int:           tftypes.Int64Value(10),
 				Int8:          tftypes.Int64Value(20),
@@ -506,7 +517,7 @@ func TestCopyStruct(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := copyStruct(context.TODO(), tc.src, tc.dest)
+			err := copyStruct(context.TODO(), tc.src, tc.dest, tc.resourceSchema)
 			if tc.expectError {
 				require.Error(t, err)
 				return
@@ -520,9 +531,9 @@ func TestCopyStruct(t *testing.T) {
 func TestCopyTerraformToMikrotik(t *testing.T) {
 	testCases := []struct {
 		name        string
-		src         interface{}
+		src         any
 		dest        client.Resource
-		expected    interface{}
+		expected    any
 		expectError bool
 	}{
 		{
@@ -579,12 +590,22 @@ func TestCopyTerraformToMikrotik(t *testing.T) {
 }
 
 func TestCopyMikrotikToTerraform(t *testing.T) {
+	type (
+		terraformStruct struct {
+			Id       tftypes.String `tfsdk:"id"`
+			Bridge   tftypes.String `tfsdk:"bridge"`
+			Tagged   tftypes.List   `tfsdk:"tagged"`
+			Untagged tftypes.List   `tfsdk:"untagged"`
+			VlanIds  tftypes.List   `tfsdk:"vlan_ids"`
+		}
+	)
 	testCases := []struct {
-		name        string
-		src         client.Resource
-		dest        interface{}
-		expected    interface{}
-		expectError bool
+		name           string
+		src            client.Resource
+		dest           any
+		resourceSchema schema.Schema
+		expected       any
+		expectError    bool
 	}{
 		{
 			name: "pass",
@@ -595,13 +616,7 @@ func TestCopyMikrotikToTerraform(t *testing.T) {
 				Untagged: types.MikrotikList{"new untagged 1"},
 				VlanIds:  types.MikrotikIntList{1, 3},
 			},
-			dest: &struct {
-				Id       tftypes.String
-				Bridge   tftypes.String
-				Tagged   tftypes.List
-				Untagged tftypes.List
-				VlanIds  tftypes.List
-			}{
+			dest: &terraformStruct{
 				Id:     tftypes.StringValue("old id field"),
 				Bridge: tftypes.StringValue("old bridge"),
 				Tagged: tftypes.ListValueMust(tftypes.StringType, []attr.Value{
@@ -616,13 +631,16 @@ func TestCopyMikrotikToTerraform(t *testing.T) {
 					tftypes.Int64Value(10),
 				}),
 			},
-			expected: &struct {
-				Id       tftypes.String
-				Bridge   tftypes.String
-				Tagged   tftypes.List
-				Untagged tftypes.List
-				VlanIds  tftypes.List
-			}{
+			resourceSchema: schema.Schema{
+				Attributes: map[string]schema.Attribute{
+					"id":       schema.StringAttribute{},
+					"bridge":   schema.StringAttribute{},
+					"tagged":   schema.ListAttribute{},
+					"untagged": schema.ListAttribute{},
+					"vlan_ids": schema.ListAttribute{},
+				},
+			},
+			expected: &terraformStruct{
 				Id:     tftypes.StringValue("new id field"),
 				Bridge: tftypes.StringValue("new bridge"),
 				Tagged: tftypes.ListValueMust(tftypes.StringType, []attr.Value{
@@ -638,10 +656,156 @@ func TestCopyMikrotikToTerraform(t *testing.T) {
 				}),
 			},
 		},
+		{
+			name: "no zero-value write to null value for non-computed",
+			src: &client.BridgeVlan{
+				Id:       "new id field",
+				Bridge:   "new bridge",
+				Tagged:   nil,
+				Untagged: types.MikrotikList{"new untagged 1"},
+				VlanIds:  types.MikrotikIntList{1, 3},
+			},
+			dest: &terraformStruct{
+				Id:     tftypes.StringValue("old id field"),
+				Bridge: tftypes.StringValue("old bridge"),
+				Tagged: tftypes.ListNull(tftypes.StringType),
+				Untagged: tftypes.ListValueMust(tftypes.StringType, []attr.Value{
+					tftypes.StringValue("old untagged 5"),
+				}),
+				VlanIds: tftypes.ListValueMust(tftypes.Int64Type, []attr.Value{
+					tftypes.Int64Value(2),
+					tftypes.Int64Value(5),
+					tftypes.Int64Value(10),
+				}),
+			},
+			resourceSchema: schema.Schema{
+				Attributes: map[string]schema.Attribute{
+					"id":     schema.StringAttribute{},
+					"bridge": schema.StringAttribute{},
+					"tagged": schema.ListAttribute{
+						Optional: true,
+					},
+					"untagged": schema.ListAttribute{},
+					"vlan_ids": schema.ListAttribute{},
+				},
+			},
+			expected: &terraformStruct{
+				Id:     tftypes.StringValue("new id field"),
+				Bridge: tftypes.StringValue("new bridge"),
+				Tagged: tftypes.ListNull(tftypes.StringType),
+				Untagged: tftypes.ListValueMust(tftypes.StringType, []attr.Value{
+					tftypes.StringValue("new untagged 1"),
+				}),
+				VlanIds: tftypes.ListValueMust(tftypes.Int64Type, []attr.Value{
+					tftypes.Int64Value(1),
+					tftypes.Int64Value(3),
+				}),
+			},
+		},
+		{
+			name: "write if incoming value is non-zero",
+			src: &client.BridgeVlan{
+				Id:       "new id field",
+				Bridge:   "new bridge",
+				Tagged:   types.MikrotikList{"new tagged 1", "new tagged 2"},
+				Untagged: types.MikrotikList{"new untagged 1"},
+				VlanIds:  types.MikrotikIntList{1, 3},
+			},
+			dest: &terraformStruct{
+				Id:     tftypes.StringValue("old id field"),
+				Bridge: tftypes.StringNull(),
+				Tagged: tftypes.ListNull(tftypes.StringType),
+				Untagged: tftypes.ListValueMust(tftypes.StringType, []attr.Value{
+					tftypes.StringValue("old untagged 5"),
+				}),
+				VlanIds: tftypes.ListValueMust(tftypes.Int64Type, []attr.Value{
+					tftypes.Int64Value(2),
+					tftypes.Int64Value(5),
+					tftypes.Int64Value(10),
+				}),
+			},
+			resourceSchema: schema.Schema{
+				Attributes: map[string]schema.Attribute{
+					"id": schema.StringAttribute{},
+					"bridge": schema.StringAttribute{
+						Optional: true,
+					},
+					"tagged": schema.ListAttribute{
+						Optional: true,
+					},
+					"untagged": schema.ListAttribute{},
+					"vlan_ids": schema.ListAttribute{},
+				},
+			},
+			expected: &terraformStruct{
+				Id:     tftypes.StringValue("new id field"),
+				Bridge: tftypes.StringValue("new bridge"),
+				Tagged: tftypes.ListValueMust(tftypes.StringType, []attr.Value{
+					tftypes.StringValue("new tagged 1"),
+					tftypes.StringValue("new tagged 2"),
+				}),
+				Untagged: tftypes.ListValueMust(tftypes.StringType, []attr.Value{
+					tftypes.StringValue("new untagged 1"),
+				}),
+				VlanIds: tftypes.ListValueMust(tftypes.Int64Type, []attr.Value{
+					tftypes.Int64Value(1),
+					tftypes.Int64Value(3),
+				}),
+			},
+		},
+		{
+			name: "write if attribute computed",
+			src: &client.BridgeVlan{
+				Id:       "new id field",
+				Bridge:   "",
+				Tagged:   types.MikrotikList{"new tagged 1", "new tagged 2"},
+				Untagged: nil,
+				VlanIds:  types.MikrotikIntList{1, 3},
+			},
+			dest: &terraformStruct{
+				Id:     tftypes.StringValue("old id field"),
+				Bridge: tftypes.StringValue("old bridge"),
+				Tagged: tftypes.ListValueMust(tftypes.StringType, []attr.Value{
+					tftypes.StringValue("old tagged 3"),
+				}),
+				Untagged: tftypes.ListNull(tftypes.StringType),
+				VlanIds: tftypes.ListValueMust(tftypes.Int64Type, []attr.Value{
+					tftypes.Int64Value(2),
+					tftypes.Int64Value(5),
+					tftypes.Int64Value(10),
+				}),
+			},
+			resourceSchema: schema.Schema{
+				Attributes: map[string]schema.Attribute{
+					"id": schema.StringAttribute{},
+					"bridge": schema.StringAttribute{
+						Computed: true,
+					},
+					"tagged": schema.ListAttribute{},
+					"untagged": schema.ListAttribute{
+						Computed: true,
+					},
+					"vlan_ids": schema.ListAttribute{},
+				},
+			},
+			expected: &terraformStruct{
+				Id:     tftypes.StringValue("new id field"),
+				Bridge: tftypes.StringValue(""),
+				Tagged: tftypes.ListValueMust(tftypes.StringType, []attr.Value{
+					tftypes.StringValue("new tagged 1"),
+					tftypes.StringValue("new tagged 2"),
+				}),
+				Untagged: tftypes.ListNull(tftypes.StringType),
+				VlanIds: tftypes.ListValueMust(tftypes.Int64Type, []attr.Value{
+					tftypes.Int64Value(1),
+					tftypes.Int64Value(3),
+				}),
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := MikrotikStructToTerraformModel(context.TODO(), tc.src, tc.dest)
+			err := MikrotikStructToTerraformModel(context.TODO(), tc.src, tc.dest, tc.resourceSchema)
 			if tc.expectError {
 				require.Error(t, err)
 				return

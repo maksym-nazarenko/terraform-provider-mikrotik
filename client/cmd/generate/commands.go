@@ -10,7 +10,8 @@ import (
 
 	"github.com/ddelnano/terraform-provider-mikrotik/client"
 	"github.com/ddelnano/terraform-provider-mikrotik/client/internal/codegen"
-	"github.com/ddelnano/terraform-provider-mikrotik/client/internal/codegen/utils"
+	codegenPkg "github.com/ddelnano/terraform-provider-mikrotik/client/pkg/codegen"
+	"github.com/ddelnano/terraform-provider-mikrotik/client/pkg/codegen/utils"
 	"github.com/ddelnano/terraform-provider-mikrotik/client/pkg/inspect"
 )
 
@@ -93,7 +94,7 @@ func subcommandResource(args []string) error {
 		return err
 	}
 
-	writeHooks := []generatorPostHookFunc{codegen.SourceFormatHook}
+	writeHooks := []generatorPostHookFunc{codegenPkg.SourceFormatHook}
 
 	result = buf.Bytes()
 	for _, h := range writeHooks {
@@ -146,7 +147,7 @@ func subcommandTest(args []string) error {
 		startLine = lineInt
 	}
 
-	s, err := codegen.ParseFile(sourceFile, startLine, structName)
+	s, err := codegenPkg.ParseFile(sourceFile, startLine, structName)
 	if err != nil {
 		return err
 	}

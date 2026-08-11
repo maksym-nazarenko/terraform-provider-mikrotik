@@ -204,7 +204,6 @@ func (p *ProviderFramework) Resources(ctx context.Context) []func() resource.Res
 		NewScriptResource,
 		NewVlanInterfaceResource,
 		NewWirelessInterfaceResource,
-		NewInterfaceWiFiConfigurationResource,
 	},
 	)
 }
